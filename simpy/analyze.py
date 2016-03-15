@@ -6,7 +6,12 @@ This module is used to analyze simulation results.
 """
 
 class traj:
-    def __init__(self, input, format='lammpstrj'):
+    def __init__(self, filename, format='lammpstrj'):
+        """
+        Args:
+            filename: filename for reading
+            format:
+        """
 
         function_name = "_read_" + format
 
@@ -25,7 +30,6 @@ class traj:
             read_n = -1: read the whole file
         Returns:
             list of frames
-
         """
 
         read_whole = False if read_n > 0 else True
