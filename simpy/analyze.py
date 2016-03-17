@@ -306,3 +306,40 @@ class traj:
             coords[i][1] = sl[2]
             coords[i][2] = sl[3]
         return [frame_info, elements, coords]
+
+class rms:
+    def __init__(self, coords, active_box=None):
+        # basic plan:
+        # 1 chek avai area
+        # 2 create 2D height map
+        # 3 calculate rms
+        #
+
+
+
+        if active_box:
+            self.set_active_box(active_box)
+            pass
+        else:
+            self.find_activ_box()
+
+
+    def set_active_box(self, active_box):
+        try:
+            self.active_box = numpy([active_box[0][0], active_box[0][1],
+                                    active_box[1][0], active_box[1][1],
+                                    active_box[2][0], active_box[2][1]])
+        except:
+            log.error("Wrong active_box variable format, should be:"
+                        " [xmin, xmax], [ymin, ymax], [zmin, zmax]")
+
+
+        # * TO DA * check if *min < *max
+
+    def find_activ_box(self, h_ratio=0.5):
+        coords = self.coords
+        xmax, ymax, zmax = coords.max(axis=0)
+        xmin, ymin, zmin = coords.min(axis=0)
+
+
+
