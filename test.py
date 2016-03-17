@@ -1,5 +1,5 @@
 from simpy import analyze
 
 tr = analyze.traj("test/test.lammpstrj")
-tr.read(1)
+frame = tr.read(-1)
 

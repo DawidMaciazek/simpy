@@ -45,13 +45,34 @@ class traj:
         frame = True
 
         frames = []
+        log.info("Read %i frames" % read_n)
+        frames_readed = 0
+        read_begining = str(read_n) if read_n > 0 else "INF"
         while frame and (read_n or read_whole):
-            print "current %i" % read_n
             frame = self.call_read(False)
-            frames.append(frame)
+            if frame:
+                frames_readed += 1
+                frame.append(frame)
+                log.info("Current frame (%i / %s)" %
+                         (frames_readed, read_begining))
+
             read_n -= 1
 
         return frames
+
+    def skip(self, skip_n=1):
+
+        not_end = 1
+        skip_begining = skip_n
+        log.info("Skip %i frames" % skip_n)
+        while not_end and skip_n:
+            not_end = self.call_read(True)
+            skip_n -= 1
+
+        if not not_end:
+            skipped = skip_begining - skip_n
+            log.warning("After %i frames skipped end of file encountered" %
+                        skipped)
 
     def _read_lammpstrj(self, skip):
         infile = self.infile
@@ -65,11 +86,11 @@ class traj:
         key_field_name = line.split()[1]
         while key_field_name != "ATOMS":
             if key_field_name == "TIMESTEP":
-                timestep = int(infile.readline()[0])
+                timestep = int(infile.readline().split()[0])
                 frame_info['timestep'] = int(timestep)
 
             elif key_field_name == "NUMBER":
-                frame_atoms = int(infile.readline()[0])
+                frame_atoms = int(infile.readline().split()[0])
                 frame_info['atoms'] = int(frame_atoms)
 
             elif key_field_name == "BOX":
@@ -107,12 +128,22 @@ class traj:
         else:
             coords_group = False
 
+        if 'xs' in key_fields and 'ys' in key_fields and 'zs' in key_fields:
+            coords_s_group = 1
+        else:
+            coords_s_group = False
+
+        if 'xu' in key_fields and 'yu' in key_fields and 'zu' in key_fields:
+            coords_u_group = 1
+        else:
+            coords_u_group = False
+
         if 'vx' in key_fields and 'vy' in key_fields and 'vz' in key_fields:
             velocity_group = 1
         else:
             velocity_group = False
 
-        addInfo['format'] = []
+        frame_info['format'] = []
 
         # transform key position index in file to index in output list
         key_proxy = [None]*len(key_fields)
@@ -120,16 +151,19 @@ class traj:
         fields = []
         key_index = 0
         proxy_index = 0
-        id_field = -1
+        # id_field = -1
         coord_index = len(key_fields)
         velocity_index = len(key_fields)
 
         for key in key_fields:
             if coords_group and key in ['x', 'y', 'z']:
                 if coords_group == 1:
-                    coord_index = key_index
                     coords_group = 2
+                    coord_index = key_index
                     fields.append(numpy.zeros([frame_atoms, 3], dtype=float))
+                    frame_info['format'].append('coords')
+                    key_index += 1
+
                 if key == 'x':
                     key_proxy[proxy_index] = [coord_index, 0]
                 elif key == 'y':
@@ -137,12 +171,52 @@ class traj:
                 elif key == 'z':
                     key_proxy[proxy_index] = [coord_index, 2]
                 else:
-                    log.error("Something strange happend while assigning fields")
+                    log.error("Something strange happend"
+                              " while assigning coordinates to field")
 
-            if velocity_group and key in ['vx', 'vy', 'vz']:
+            elif coords_s_group and key in ['xs', 'ys', 'zs']:
+                if coords_s_group == 1:
+                    coords_s_group = 2
+                    coord_index = key_index
+                    fields.append(numpy.zeros([frame_atoms, 3], dtype=float))
+                    frame_info['format'].append('coords_scaled')
+                    key_index += 1
+
+                if key == 'xs':
+                    key_proxy[proxy_index] = [coord_index, 0]
+                elif key == 'ys':
+                    key_proxy[proxy_index] = [coord_index, 1]
+                elif key == 'zs':
+                    key_proxy[proxy_index] = [coord_index, 2]
+                else:
+                    log.error("Something strange happend"
+                              " while assigning scaled coordinates to field")
+
+            elif coords_u_group and key in ['xs', 'ys', 'zs']:
+                if coords_u_group == 1:
+                    coords_u_group = 2
+                    coord_index = key_index
+                    fields.append(numpy.zeros([frame_atoms, 3], dtype=float))
+                    frame_info['format'].append('coords_unwrapped')
+                    key_index += 1
+
+                if key == 'xu':
+                    key_proxy[proxy_index] = [coord_index, 0]
+                elif key == 'yu':
+                    key_proxy[proxy_index] = [coord_index, 1]
+                elif key == 'zu':
+                    key_proxy[proxy_index] = [coord_index, 2]
+                else:
+                    log.error("Something strange happend"
+                              " while assigning unwrapped coordinates to field")
+
+            elif velocity_group and key in ['vx', 'vy', 'vz']:
                 if velocity_group == 1:
                     velocity_group = 2
+                    velocity_index = key_index
                     fields.append(numpy.zeros([frame_atoms, 3], dtype=float))
+                    frame_info['velocity'].append('velocity')
+                    key_index += 1
 
                 if key == 'vx':
                     key_proxy[proxy_index] = [velocity_index, 0]
@@ -151,18 +225,84 @@ class traj:
                 elif key == 'vz':
                     key_proxy[proxy_index] = [velocity_index, 2]
                 else:
-                    log.error("Something strange happend while assigning fields")
+                    log.error("Something strange happend"
+                              " while assigning fields")
 
             elif key == 'type':
-                pass
+                fields.append(numpy.zeros(frame_atoms, dtype=int))
+                frame_info['format'].append(key)
+                key_proxy[proxy_index] = key_index
+                key_index += 1
+
             elif key == 'id':
-                pass
+                # id_field = key_index
+                fields.append(numpy.zeros(frame_atoms, dtype=int))
+                frame_info['format'].append(key)
+                key_proxy[proxy_index] = key_index
+                key_index += 1
+
             elif key == 'element':
-                pass
+                frame_info['format'].append(key)
+                # *TO DO* upgrade from simple python string list
+                fields.append([None]*frame_atoms)
+                key_proxy[proxy_index] = key_index
+                key_index += 1
             else:
-                pass
+                fields.append(numpy.zeros(frame_atoms, dtype=float))
+                frame_info['format'].append(key)
+                key_proxy[proxy_index] = key_index
+                key_index += 1
+            proxy_index += 1
 
+        if skip:
+            for i in xrange(frame_atoms):
+                infile.readline()
+            return 1
 
+        fields_n = proxy_index
+        for i in xrange(frame_atoms):
+            sp = infile.readline().split()
+
+            for j in xrange(fields_n):
+                jproxy = key_proxy[j]
+
+                if isinstance(jproxy, list):
+                    fields[jproxy[0]][i][jproxy[1]] = sp[j]
+                elif jproxy is not None:
+                    fields[jproxy][i] = sp[j]
+
+        frame_output = [frame_info]
+        frame_output.extend(fields)
+        return frame_output
 
     def _read_xyz(self, skip):
-        print "calling XYZ ! function)"
+
+        infile = self.infile
+        frame_info = {}
+        line = infile.readline()
+        if not line:
+            return False
+
+        frame_atoms = int(line)
+        frame_info['atoms'] = int(frame_atoms)
+
+        line = infile.readline()
+        frame_info['comment'] = line
+        # * TO DO * allow the acceptance of dditional fields
+        frame_info['fields'] = ['element', 'coords']
+
+        coords = numpy.empty([frame_atoms, 3], dtype=float)
+        elements = [None]*frame_atoms
+
+        if skip:
+            for i in xrange(frame_atoms):
+                infile.readline()
+            return 1
+
+        for i in xrange(frame_atoms):
+            sl = infile.readline().split()
+            elements[i] = sl[0]
+            coords[i][0] = sl[1]
+            coords[i][1] = sl[2]
+            coords[i][2] = sl[3]
+        return [frame_info, elements, coords]
