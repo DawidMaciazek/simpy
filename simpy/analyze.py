@@ -5,6 +5,7 @@ This module is used to analyze simulation results.
 
 """
 import numpy
+import math
 # TO DO: set proper logger! !!
 import logging as log
 log.basicConfig(format="%(levelname)s: %(message)s", level=10)
@@ -52,7 +53,7 @@ class traj:
             frame = self.call_read(False)
             if frame:
                 frames_readed += 1
-                frame.append(frame)
+                frames.append(frame)
                 log.info("Current frame (%i / %s)" %
                          (frames_readed, read_begining))
 
@@ -215,7 +216,7 @@ class traj:
                     velocity_group = 2
                     velocity_index = key_index
                     fields.append(numpy.zeros([frame_atoms, 3], dtype=float))
-                    frame_info['velocity'].append('velocity')
+                    frame_info['format'].append('velocity')
                     key_index += 1
 
                 if key == 'vx':
@@ -307,39 +308,72 @@ class traj:
             coords[i][2] = sl[3]
         return [frame_info, elements, coords]
 
+
 class rms:
-    def __init__(self, coords, active_box=None):
-        # basic plan:
-        # 1 chek avai area
-        # 2 create 2D height map
-        # 3 calculate rms
-        #
-
-
+    def __init__(self, coords, r_sample, r_probe, active_box=None):
+        self.coords = coords
+        self.r_sample = r_sample
+        self.r_probe = r_probe
+        self.r = r_sample + r_probe
 
         if active_box:
             self.set_active_box(active_box)
-            pass
         else:
             self.find_activ_box()
 
+        print self.active_box
+        self.create_logical_cells()
 
     def set_active_box(self, active_box):
         try:
-            self.active_box = numpy([active_box[0][0], active_box[0][1],
-                                    active_box[1][0], active_box[1][1],
-                                    active_box[2][0], active_box[2][1]])
+            self.active_box = numpy.array([[active_box[0][0], active_box[0][1]],
+                                           [active_box[1][0], active_box[1][1]],
+                                           [active_box[2][0], active_box[2][1]]],
+                                          dtype=float)
         except:
             log.error("Wrong active_box variable format, should be:"
-                        " [xmin, xmax], [ymin, ymax], [zmin, zmax]")
+                      " [[xmin, xmax], [ymin, ymax], [zmin, zmax]]")
 
-
-        # * TO DA * check if *min < *max
+        if (active_box[0][0] >= active_box[0][1]):
+            log.error("Ill-defined X demension for box")
+        if (active_box[1][0] >= active_box[1][1]):
+            log.error("Ill-defined Y demension for box")
+        if (active_box[2][0] >= active_box[2][1]):
+            log.error("Ill-defined Z demension for box")
 
     def find_activ_box(self, h_ratio=0.5):
         coords = self.coords
         xmax, ymax, zmax = coords.max(axis=0)
         xmin, ymin, zmin = coords.min(axis=0)
 
+        self.set_active_box([[xmin, xmax], [ymin, ymax], [zmin, zmax]])
+
+    def create_logical_cells(self):
+        r = self.r
+        active_box = self.active_box
+        offset = 0.01
+
+        x_dimension = active_box[0][1] - active_box[0][0] + offset
+        y_dimension = active_box[1][1] - active_box[1][0] + offset
+
+        x_rep = int(math.ceil(x_dimension/r))
+        y_rep = int(math.ceil(y_dimension/r))
+
+        logical_cells = numpy.zeros((x_rep, y_rep), dtype=float)
+        logical_cells.fill(active_box[2][0])
+
+        x_shift = -active_box[0][0]
+        y_shift = -active_box[1][0]
+
+        coords = self.coords
+        # loop over atoms
+        for i in xrange(len(coords)):
+            x_index = int(math.floor(coords[i][0]+x_shift)/r)
+            y_index = int(math.floor(coords[i][1]+y_shift)/r)
+            z = coords[i][2]
+
+            if z > logical_cells[x_index][y_index]:
+                logical_cells[x_index][y_index] = z
 
 
+        self.logical_cells = logical_cells
