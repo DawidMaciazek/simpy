@@ -315,14 +315,15 @@ class rms:
         self.r_sample = r_sample
         self.r_probe = r_probe
         self.r = r_sample + r_probe
+        self.r2 = self.r*self.r
 
         if active_box:
             self.set_active_box(active_box)
         else:
-            self.find_activ_box()
+            self.set_active_box(self.find_activ_box())
 
         print self.active_box
-        self.create_logical_cells()
+
 
     def set_active_box(self, active_box):
         try:
@@ -346,9 +347,12 @@ class rms:
         xmax, ymax, zmax = coords.max(axis=0)
         xmin, ymin, zmin = coords.min(axis=0)
 
-        self.set_active_box([[xmin, xmax], [ymin, ymax], [zmin, zmax]])
+        return [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
 
-    def create_logical_cells(self):
+    def get_surf_array_oa2d(self, sampling_array):
+        """
+        oa2d - one atom 2 demension surf array
+        """
         r = self.r
         active_box = self.active_box
         offset = 0.01
@@ -359,7 +363,7 @@ class rms:
         x_rep = int(math.ceil(x_dimension/r))
         y_rep = int(math.ceil(y_dimension/r))
 
-        logical_cells = numpy.zeros((x_rep, y_rep), dtype=float)
+        logical_cells = numpy.zeros((x_rep, y_rep, 3), dtype=float)
         logical_cells.fill(active_box[2][0])
 
         x_shift = -active_box[0][0]
@@ -372,8 +376,57 @@ class rms:
             y_index = int(math.floor(coords[i][1]+y_shift)/r)
             z = coords[i][2]
 
-            if z > logical_cells[x_index][y_index]:
-                logical_cells[x_index][y_index] = z
+            if z > logical_cells[x_index][y_index][2]:
+                logical_cells[x_index][y_index][0] = coords[i][0]
+                logical_cells[x_index][y_index][1] = coords[i][1]
+                logical_cells[x_index][y_index][2] = z
 
+        x_index_max = x_rep - 1
+        y_index_max = y_rep - 1
 
-        self.logical_cells = logical_cells
+        surface_array = numpy.zeros((len(sampling_array), 3), dtype=float)
+        for i in xrange(len(sampling_array)):
+            probe_xy = sampling_array[i]
+            x_index = int(math.floor(probe_xy[0]+x_shift)/r)
+            y_index = int(math.floor(probe_xy[1]+y_shift)/r)
+
+            # create neighbors listr
+            if x_index == 0:
+                x_neigh = [0, 1]
+            elif x_index == x_index_max:
+                x_neigh = [x_index_max-1, x_index_max]
+            else:
+                x_neigh = [x_index-1, x_index, x_index+1]
+
+            if y_index == 0:
+                y_neigh = [0, 1]
+            elif y_index == y_index_max:
+                y_neigh = [y_index_max-1, y_index_max]
+            else:
+                y_neigh = [y_index-1, y_index, y_index+1]
+
+            z = None
+            for x_n_index in x_neigh:
+                for y_n_index in y_neigh:
+                    z_new = self.calc_z_oa2d(probe_xy,
+                                         logical_cells[x_n_index][y_n_index])
+                    if z_new > z:
+                        z = z_new
+
+            surface_array[i][0] = probe_xy[0]
+            surface_array[i][1] = probe_xy[1]
+            surface_array[i][2] = z
+
+        return surface_array
+
+    def calc_z_oa2d(self, probe_xy, sample_atom):
+        r2 = self.r2
+        dx = probe_xy[0] - sample_atom[0]
+        dy = probe_xy[1] - sample_atom[1]
+        dxy2 = dx*dx + dy*dy
+        z = sample_atom[2]
+
+        if dxy2 > r2:
+            return None
+        else:
+            return math.sqrt(r2-dxy2)+z
