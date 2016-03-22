@@ -310,19 +310,28 @@ class traj:
 
 
 class rms:
+    """
+    Tool for calculating roughness of atomic scale surfaces
+
+    Args:
+        coords (numpy float list (n, 3)):
+        r_sample : vdw radius of sample atoms
+        r_probe : vdw radius of probe atom
+        active_box (optional array (3,2)): box in which the atoms are included
+        in rms calcuation, if None - program will find optimal box
+    """
     def __init__(self, coords, r_sample, r_probe, active_box=None):
-        self.coords = coords
-        self.r_sample = r_sample
-        self.r_probe = r_probe
-        self.r = r_sample + r_probe
+        self.coords = coords         # array of surface atoms coordinates
+        self.r_sample = r_sample     # r vdw of surface atoms
+        self.r_probe = r_probe       # r vdw of probe atom
+        self.r = r_sample + r_probe  # total bond r vdw surface-probe
         self.r2 = self.r*self.r
 
+        # set or find box in which surface atoms will be searched
         if active_box:
             self.set_active_box(active_box)
         else:
             self.set_active_box(self.find_activ_box())
-
-        print self.active_box
 
 
     def set_active_box(self, active_box):
@@ -343,17 +352,33 @@ class rms:
             log.error("Ill-defined Z demension for box")
 
     def find_activ_box(self, h_ratio=0.5):
+        """
+        Find box large enough to fit all atoms inside
+
+        Args:
+            h_ratio : what part of the atoms in the box will be used for
+            claculations (atoms with higher z component will be accepted)
+        """
+
         coords = self.coords
         xmax, ymax, zmax = coords.max(axis=0)
         xmin, ymin, zmin = coords.min(axis=0)
 
         return [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
 
-    def get_surf_array_oa2d(self, sampling_array):
+    def get_surf_array_oa2d(self, sampling_array, lc_rep=1):
         """
-        oa2d - one atom 2 demension surf array
+
+        Args:
+            sampling_array : array of point for which height will be calculated
+            lc_rep : how many logic cells will be taken to calculate one point
+            1 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)  ...
         """
-        r = self.r
+
+        # Step 1 - create array of logica cells
+        # ------------------------------------
+        r = self.r/float(lc_rep)
+        lc_rep = int(lc_rep)
         active_box = self.active_box
         offset = 0.01
 
@@ -370,42 +395,52 @@ class rms:
         y_shift = -active_box[1][0]
 
         coords = self.coords
-        # loop over atoms
+        # loop over all atoms and assign them to the appropriate cells
         for i in xrange(len(coords)):
             x_index = int(math.floor(coords[i][0]+x_shift)/r)
             y_index = int(math.floor(coords[i][1]+y_shift)/r)
             z = coords[i][2]
 
+            # only one atom with highest z per logic cell
             if z > logical_cells[x_index][y_index][2]:
                 logical_cells[x_index][y_index][0] = coords[i][0]
                 logical_cells[x_index][y_index][1] = coords[i][1]
                 logical_cells[x_index][y_index][2] = z
 
-        x_index_max = x_rep - 1
-        y_index_max = y_rep - 1
+        # Step 2 - using generated logical cells and points to sample
+        # create array with corresponding heights
+        # ------------------------------------
+
+        x_index_max = int(x_rep - lc_rep)
+        y_index_max = int(y_rep - lc_rep)
+
+        #
+        neigh_template = numpy.arange(-lc_rep, lc_rep+1, 1, dtype=int)
 
         surface_array = numpy.zeros((len(sampling_array), 3), dtype=float)
         for i in xrange(len(sampling_array)):
+            # calculate index  corresponding to probe x y
             probe_xy = sampling_array[i]
             x_index = int(math.floor(probe_xy[0]+x_shift)/r)
             y_index = int(math.floor(probe_xy[1]+y_shift)/r)
 
-            # create neighbors listr
-            if x_index == 0:
-                x_neigh = [0, 1]
-            elif x_index == x_index_max:
-                x_neigh = [x_index_max-1, x_index_max]
+            # check boundary conditions
+            if x_index < lc_rep:
+                x_neigh = neigh_template[(lc_rep-x_index):]+x_index
+            elif x_index >= x_index_max:
+                x_neigh = neigh_template[:(lc_rep+x_rep-x_index)]+x_index
             else:
-                x_neigh = [x_index-1, x_index, x_index+1]
+                x_neigh = neigh_template+x_index
 
-            if y_index == 0:
-                y_neigh = [0, 1]
-            elif y_index == y_index_max:
-                y_neigh = [y_index_max-1, y_index_max]
+            if y_index < lc_rep:
+                y_neigh = neigh_template[(lc_rep-y_index):]+y_index
+            elif y_index >= y_index_max:
+                y_neigh = neigh_template[:(lc_rep+y_rep-y_index)]+y_index
             else:
-                y_neigh = [y_index-1, y_index, y_index+1]
+                y_neigh = neigh_template+y_index
 
             z = None
+            # loop over all neighbors
             for x_n_index in x_neigh:
                 for y_n_index in y_neigh:
                     z_new = self.calc_z_oa2d(probe_xy,
@@ -420,6 +455,9 @@ class rms:
         return surface_array
 
     def calc_z_oa2d(self, probe_xy, sample_atom):
+        """
+
+        """
         r2 = self.r2
         dx = probe_xy[0] - sample_atom[0]
         dy = probe_xy[1] - sample_atom[1]
