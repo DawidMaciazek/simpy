@@ -2,7 +2,7 @@ from simpy import analyze
 import numpy
 import math
 
-tr = analyze.traj("/home/dawid/dumps/silicon/lj_full.lammpstrj")
+tr = analyze.traj("/home/dawid/dumps/silicon/lj_full_100.lammpstrj")
 
 x = numpy.arange(-57.5, 58, 1.0)
 y = numpy.arange(-57.5, 58, 1.0)
@@ -12,7 +12,7 @@ probe_array = numpy.array([X.flatten(), Y.flatten()]).T
 
 frame = tr.read(1)
 
-output = open("out_rms.txt", 'w')
+output = open("out_100_rms.txt", 'w')
 
 
 frame_cnt = 0
