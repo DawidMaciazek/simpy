@@ -48,7 +48,7 @@ class traj:
         frames = []
         log.info("Read %i frames" % read_n)
         frames_readed = 0
-        read_begining = str(read_n) if read_n > 0 else "INF"
+        read_begining = str(read_n) if read_n > 0 else "END"
         while frame and (read_n or read_whole):
             frame = self.call_read(False)
             if frame:
@@ -327,14 +327,21 @@ class rms:
         self.r = r_sample + r_probe  # total bond r vdw surface-probe
         self.r2 = self.r*self.r
 
+        self.sampling_points_flag = False
+        self.active_box_flag = False
+
         # set or find box in which surface atoms will be searched
         if active_box:
             self.set_active_box(active_box)
         else:
-            self.set_active_box(self.find_activ_box())
-
+            self.find_activ_box()
 
     def set_active_box(self, active_box):
+        """
+
+        Args:
+
+        """
         try:
             self.active_box = numpy.array([[active_box[0][0], active_box[0][1]],
                                            [active_box[1][0], active_box[1][1]],
@@ -351,6 +358,8 @@ class rms:
         if (active_box[2][0] >= active_box[2][1]):
             log.error("Ill-defined Z demension for box")
 
+        self.active_box_flag = True
+
     def find_activ_box(self, h_ratio=0.5):
         """
         Find box large enough to fit all atoms inside
@@ -364,9 +373,9 @@ class rms:
         xmax, ymax, zmax = coords.max(axis=0)
         xmin, ymin, zmin = coords.min(axis=0)
 
-        return [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
+        self.set_active_box([[xmin, xmax], [ymin, ymax], [zmin, zmax]])
 
-    def get_surf_array_oa2d(self, sampling_array, lc_rep=1):
+    def get_surf_array_oa2d(self, lc_rep):
         """
 
         Args:
@@ -374,13 +383,13 @@ class rms:
             lc_rep : how many logic cells will be taken to calculate one point
             1 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)  ...
         """
-
         # Step 1 - create array of logica cells
         # ------------------------------------
         r = self.r/float(lc_rep)
         lc_rep = int(lc_rep)
         active_box = self.active_box
         offset = 0.01
+        sampling_array = self.sampling_array
 
         x_dimension = active_box[0][1] - active_box[0][0] + offset
         y_dimension = active_box[1][1] - active_box[1][0] + offset
@@ -418,6 +427,7 @@ class rms:
         neigh_template = numpy.arange(-lc_rep, lc_rep+1, 1, dtype=int)
 
         surface_array = numpy.zeros((len(sampling_array), 3), dtype=float)
+        active_i = 0
         for i in xrange(len(sampling_array)):
             # calculate index  corresponding to probe x y
             probe_xy = sampling_array[i]
@@ -447,17 +457,15 @@ class rms:
                                          logical_cells[x_n_index][y_n_index])
                     if z_new > z:
                         z = z_new
+            if z:
+                surface_array[active_i][0] = probe_xy[0]
+                surface_array[active_i][1] = probe_xy[1]
+                surface_array[active_i][2] = z
+                active_i += 1
 
-            surface_array[i][0] = probe_xy[0]
-            surface_array[i][1] = probe_xy[1]
-            surface_array[i][2] = z
-
-        return surface_array
+        return surface_array[:active_i]
 
     def calc_z_oa2d(self, probe_xy, sample_atom):
-        """
-
-        """
         r2 = self.r2
         dx = probe_xy[0] - sample_atom[0]
         dy = probe_xy[1] - sample_atom[1]
@@ -468,3 +476,39 @@ class rms:
             return None
         else:
             return math.sqrt(r2-dxy2)+z
+
+    def calc_sampling_points(self, jump=1.0, offset=1.0):
+        if not self.active_box_flag:
+            self.find_activ_box()
+        dim_x = self.active_box[0]
+        dim_y = self.active_box[1]
+
+        x = numpy.arange(dim_x[0] - offset, dim_x[1] - offset, jump)
+        y = numpy.arange(dim_y[0] - offset, dim_y[1] - offset, jump)
+
+        X, Y = numpy.meshgrid(x, y)
+        self.sampling_array = numpy.array([X.flatten(), Y.flatten()]).T
+        self.sampling_points_flag = True
+
+    def set_sampling_points(self, array):
+        # add array corectness verification
+
+        self.sampling_array = array
+        self.sampling_points_flag = True
+
+    def compute(self, lc_rep=2):
+        if not self.active_box_flag:
+            self.find_activ_box()
+
+        if not self.sampling_points_flag:
+            self.calc_sampling_points()
+
+        surf_array = self.get_surf_array_oa2d(lc_rep)
+
+        z_ave = numpy.average(surf_array[:,2])
+        z_sq_sum = 0.0
+        for i in xrange(len(surf_array)):
+            res = z_ave-surf_array[i][2]
+            z_sq_sum += res*res
+
+        return math.sqrt(z_sq_sum/len(surf_array))
