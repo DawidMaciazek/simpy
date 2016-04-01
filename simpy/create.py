@@ -1,8 +1,8 @@
 import numpy
 import math
 
-import logging as log
-log.basicConfig(format="%(levelname)s: %(message)s", level=10)
+import logging
+log = logging.getLogger(__name__)
 
 
 class lattice:

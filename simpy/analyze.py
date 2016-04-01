@@ -6,9 +6,15 @@ This module is used to analyze simulation results.
 """
 import numpy
 import math
-# TO DO: set proper logger! !!
-import logging as log
-log.basicConfig(format="%(levelname)s: %(message)s", level=10)
+import logging
+log = logging.getLogger(__name__)
+
+def get(frame, field):
+    try:
+        return frame[0][field]
+    except:
+        log.warining("Something went wong when getting field: %s" % field)
+        return None
 
 
 class traj:
@@ -62,7 +68,6 @@ class traj:
         return frames
 
     def skip(self, skip_n=1):
-
         not_end = 1
         skip_begining = skip_n
         log.info("Skip %i frames" % skip_n)
