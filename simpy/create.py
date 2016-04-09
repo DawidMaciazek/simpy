@@ -5,7 +5,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class lattice:
+class Lattice:
     def __init__(self, box_size=None, lattice_system=None, origin=None,
                  lat_constant=None, miller=None, miller_angle=None,
                  lat_vectors=None, ):
@@ -74,19 +74,19 @@ class lattice:
 
     def set_system(self, lat_type):
         # simple
-        if (lat_type in ["pcc", "simple", "P", "p"]):
+        if lat_type in ["pcc", "simple", "P", "p"]:
             self.lattice_system = "pcc"
 
         # Body Centered Cubic
-        elif (lat_type in ["bcc", "B", "b"]):
+        elif lat_type in ["bcc", "B", "b"]:
             self.lattice_system = "bcc"
 
         # Face Centered Cubic
-        elif (lat_type in ["fcc", "F", "f"]):
+        elif lat_type in ["fcc", "F", "f"]:
             self.lattice_system = "fcc"
 
         # Diamond
-        elif (lat_type in ["diamond", "D", "d"]):
+        elif lat_type in ["diamond", "D", "d"]:
             self.lattice_system = "diamond"
 
         else:
@@ -210,15 +210,15 @@ class lattice:
             nodes_ex2 = nodes + (lattice_vectors[2] + lattice_vectors[0]) * 0.5
 
             nodes_ex3 = nodes + numpy.sum(lattice_vectors * 0.25, axis=0)
-            nodes_ex4 = nodes + (lattice_vectors[0]*0.75
-                                 + lattice_vectors[1]*0.75
-                                 + lattice_vectors[2]*0.25)
-            nodes_ex5 = nodes + (lattice_vectors[0]*0.25
-                                 + lattice_vectors[1]*0.75
-                                 + lattice_vectors[2]*0.75)
-            nodes_ex6 = nodes + (lattice_vectors[0]*0.75
-                                 + lattice_vectors[1]*0.25
-                                 + lattice_vectors[2]*0.75)
+            nodes_ex4 = nodes + (lattice_vectors[0]*0.75 +
+                                 lattice_vectors[1]*0.75 +
+                                 lattice_vectors[2]*0.25)
+            nodes_ex5 = nodes + (lattice_vectors[0]*0.25 +
+                                 lattice_vectors[1]*0.75 +
+                                 lattice_vectors[2]*0.75)
+            nodes_ex6 = nodes + (lattice_vectors[0]*0.75 +
+                                 lattice_vectors[1]*0.25 +
+                                 lattice_vectors[2]*0.75)
 
             return numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2,
                                       nodes_ex3, nodes_ex4, nodes_ex5,
@@ -253,5 +253,111 @@ class lattice:
         return (jumps, norm_vec, start_vec)
 
 
+class Molecule:
+    def __init__(self, types, coords):
+        self.coords = coords
+        self.coords_n = len(coords)
+        self.types = types
+
+    def rotate(self):
+        log.warning("Not implemented yet...")
+
+    def center_com(self):
+        # com - center of mass
+        log.warning("Not implemented yet...")
+
+    def center_coc(self):
+        # coc - center of coordinates
+        log.warning("Not implemented yet...")
+        coords = self.coords
+        average = numpy.average(coords, axis=0)
+
+        for i in xrange(self.coords_n):
+            coords[i] = coords[i] + average
+
+    def center_atom(self, atom_id=0):
+        # center on atom, default first
+        log.warning("Not implemented yet...")
+
+    def get_molecule(self):
+        return (self.types, self.coords)
+
+class Crystal:
+    def __init__(self, molecule, lattice, active=True):
+        self.lattice = lattice
+        self.molecule = molecule
+
+        try:
+            self.nodes = lattice.get_nodes()
+            self.nodes_n = len(self.nodes)
+        except:
+            log.error("Something went wrong while getting nodes form lattice")
+
+        if active:
+            self.active_list = numpy.ones(self.nodes_n, dtype=bool)
+        else:
+            self.active_list = numpy.zeros(self.nodes_n, dtype=bool)
+
+    def union(self, function):
+        self.validate_function(function)
+        active_list = self.active_list
+        nd = self.nodes
+        for i in xrange(len(active_list)):
+            active_list[i] = active_list[i] | function(nd[i][0], nd[i][1],
+                                                       nd[i][2])
+
+    def intersect(self, function):
+        self.validate_function(function)
+        active_list = self.active_list
+        nd = self.nodes
+        for i in xrange(len(active_list)):
+            active_list[i] = active_list[i] & function(nd[i][0], nd[i][1],
+                                                       nd[i][2])
+
+    def subtract(self, function):
+        self.validate_function(function)
+        active_list = self.active_list
+        nd = self.nodes
+        for i in xrange(len(active_list)):
+            active_list[i] = active_list[i] & (not function(nd[i][0],
+                                                            nd[i][1], nd[i][2]))
+
+    def validate_function(self, function):
+        try:
+            function(0, 0, 0)
+        except:
+            log.error("Passed function is ill defined, should be:"
+                      " bool function(x, y, z)")
+
+    def get_crystal(self):
+        nodes = self.nodes
+        nodes_n = self.nodes_n
+        active_list = self.active_list
+
+        nodes_final_n = sum(active_list)
+
+        mol_types, mol_coords = self.molecule.get_molecule()
+        mol_n = len(mol_coords)
+
+        crystal_n = nodes_final_n*mol_n
+
+        crystal_coords = numpy.empty((crystal_n, 3), dtype=float)
+        crystal_types = [None]*crystal_n
+
+        index_current = 0
+        for i in xrange(nodes_n):
+            if not active_list[i]:
+                continue
+
+            for j in xrange(mol_n):
+                crystal_coords[index_current] = nodes[i] + mol_coords[j]
+                crystal_types[index_current] = mol_types[j]
+                index_current += 1
+
+        return (crystal_types, crystal_coords)
+
+class System:
+    def __init__(self):
+        pass
 
 

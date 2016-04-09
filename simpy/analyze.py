@@ -17,7 +17,7 @@ def get(frame, field):
         return None
 
 
-class traj:
+class Traj:
     def __init__(self, filename, format='lammpstrj', log_level=10):
         """
         Args:
@@ -314,7 +314,7 @@ class traj:
         return [frame_info, elements, coords]
 
 
-class rms:
+class RMS:
     """
     Tool for calculating roughness of atomic scale surfaces
 
