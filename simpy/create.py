@@ -4,6 +4,14 @@ import math
 import logging
 log = logging.getLogger(__name__)
 
+def check_if_numpy2D(array, fun_name):
+    # check if numpy array
+    if not type(array).__module__ == numpy.__name__:
+        log.error("function [%s] only accepts numpy array" % fun_name)
+
+    if len(array.shape) != 2 or array.shape[1] != 3:
+        log.error("function [%s] only accepts numpy array of shape (n, 3)"
+                  % fun_name)
 
 class Lattice:
     def __init__(self, box_size=None, lattice_system=None, origin=None,
@@ -29,7 +37,7 @@ class Lattice:
         if lat_vectors:
             self.set_lattice_vectors(lat_vectors)
         else:
-            self.set_lattice_vectors(numpy.array([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]))
+            self.set_lattice_vectors(numpy.array([[2., 0., 0.], [0., 2., 0.], [0., 0., 2.]]))
 
         if lat_constant:
             if not miller_angle:
@@ -255,6 +263,7 @@ class Lattice:
 
 class Molecule:
     def __init__(self, types, coords):
+        check_if_numpy2D(coords, "Molecule.__init__")
         self.coords = coords
         self.coords_n = len(coords)
         self.types = types
