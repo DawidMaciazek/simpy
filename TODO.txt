@@ -1,0 +1,27 @@
+[*** ] Estimated level of difficulty 
+	[*   ] very low
+	[****] very high
+
+{00--} Level of completion
+	{----} Nothing done
+	{0000} Almost done
+	{####} Done
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%    TO DO LIST    %%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Write bonds analyze
+	[*   ] {----} get already writen old code and try to reuse
+
+
+Expand write module
+	[**  ] {----} add lmpdat basic functionality
+
+Improve create module
+	[*   ] {----} write sensible documentation
+	[**  ] {----} add and test molecule rotation
+	[**  ] {----} add and test molecule com
+	[*   ] {----} finish Crystal class
+
