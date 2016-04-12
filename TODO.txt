@@ -21,7 +21,7 @@ Expand write module
 
 Improve create module
 	[*   ] {----} write sensible documentation
-	[**  ] {----} add and test molecule rotation
+	[**  ] {0000} add and test molecule rotation
 	[**  ] {----} add and test molecule com
 	[*   ] {----} finish Crystal class
 

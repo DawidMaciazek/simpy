@@ -1,5 +1,6 @@
 import numpy
 import math
+import math_tools
 
 import logging
 log = logging.getLogger(__name__)
@@ -142,11 +143,47 @@ class Lattice:
         self.lattice_vectors = numpy.array([al, bl, cl], dtype=float)
         log.info("Current lattice vectors:\n%s" % str(self.lattice_vectors))
 
-    def set_lattice_miller(lat_constant, miller, miller_angle):
-
-
-        log.info("Using lattice constant: %s, \n miller vector: %s\nand miller angle %s"
+    def set_lattice_miller(self, lat_constant, miller, miller_angle):
+        log.info("Using lattice constant: %s, miller vector: %s and miller angle %s"
                  % (str(lat_constant), str(miller), str(miller_angle)))
+
+        try:
+            miller = numpy.array([miller[0], miller[1], miller[2]], dtype=float)
+        except:
+            log.error("Bad Miller indexes format: %s\n shoud be [a, b, c]" %
+                      str(miller))
+
+        self.set_lattice_vectors([[lat_constant, 0., 0.],
+                                  [0., lat_constant, 0.],
+                                  [0., 0., lat_constant]])
+        self.set_miller(miller, miller_angle)
+
+    def set_miller(self, miller, miller_angle=0.0, orient=[0., 0., 1.]):
+        lattice_vectors = self.lattice_vectors
+        direction = numpy.array(orient, dtype=float)
+        miller = numpy.array(miller)
+
+        # normal vector to the desired miller plane (miller vector)
+        lattice_vectors_sum = numpy.sum(lattice_vectors, axis=0)
+        miller = numpy.array([miller[0], miller[1],
+                              miller[2]]) * lattice_vectors_sum
+
+        rotation_vector = numpy.cross(miller, direction)
+        rotation_vector = rotation_vector / numpy.linalg.norm(rotation_vector)
+
+        rotation_angle = math.acos(numpy.dot(miller, direction) /
+                                   (numpy.linalg.norm(miller) *
+                                    numpy.linalg.norm(direction)))
+
+        rmatrix = math_tools.rotation_matrix(rotation_vector, rotation_angle)
+        rmatrix_main = math_tools.rotation_matrix(direction, miller_angle)
+
+        lattice_final = [None]*3
+        for i in xrange(3):
+            lattice_final[i] = numpy.dot(rmatrix_main,
+                                         numpy.dot(rmatrix, lattice_vectors[i]))
+
+        self.set_lattice_vectors(numpy.array(lattice_final))
 
     def get_nodes(self):
         a = self.lattice_vectors[0]
@@ -268,16 +305,30 @@ class Molecule:
         self.coords_n = len(coords)
         self.types = types
 
-    def rotate(self):
-        log.warning("Not implemented yet...")
+    def rotate(self, axis, theta, center=[0, 0, 0]):
+        rotation_matrix = math_tools.rotation_matrix(axis, theta)
+        rotation_center = numpy.array([center[0], center[1], center[2]],
+                                      dtype=float)
+
+        log.info("Rotating molecule around [%f, %f, %f] by %f radians"
+                 % (axis[0], axis[1], axis[2], theta))
+
+        coords = self.coords
+        for i in xrange(len(coords)):
+            atom_position = numpy.copy(coords[i])
+            atom_position -= rotation_center
+            atom_position = numpy.dot(rotation_matrix, atom_position)
+            atom_position += rotation_center
+            coords[i] = atom_position
 
     def center_com(self):
         # com - center of mass
         log.warning("Not implemented yet...")
 
     def center_coc(self):
-        # coc - center of coordinates
-        log.warning("Not implemented yet...")
+        """
+        coc - center of coordinates
+        """
         coords = self.coords
         average = numpy.average(coords, axis=0)
 
