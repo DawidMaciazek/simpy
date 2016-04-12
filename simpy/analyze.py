@@ -1,8 +1,5 @@
 """
 This module is used to analyze simulation results.
-
-
-
 """
 import numpy
 import math
@@ -10,21 +7,49 @@ import logging
 log = logging.getLogger(__name__)
 
 def get(frame, field):
+    """
+    Fetch array corresponding to require field.
+    For singe frame returns fingle array.
+    For list of frames returns list of array.
+
+    Args:
+        frame (list): list of frames or single frame
+        field (str): name of field to fetch
+
+    Returns:
+        numpy.ndarray: if numeric field (coords, velocity ...)
+        list [str]: if text field (elements)
+    """
+
     try:
-        return frame[0][field]
+        if type(frame) == list and type(frame[0]) == dict:
+            index = frame[0]['format'].index(field) + 1
+            return frame[index]
+        elif type(frame) == list and type(frame[0]) == list and type(frame[0][0]) == dict:
+            out_array = []
+            for i in xrange(len(frame)):
+                index = frame[i][0]['format'].index(field) + 1
+                out_array.append(frame[i][index])
+            return out_array
+        else:
+            log.warining("This is not a frame or a list of frames."
+                        "This function accepts returns from analyze.Traj.return()")
     except:
         log.warining("Something went wong when getting field: %s" % field)
-        return None
+
+    return None
 
 
 class Traj:
-    def __init__(self, filename, format='lammpstrj', log_level=10):
-        """
-        Args:
-            filename: filename for reading
-            format: format of the readed file
-        """
+    """
+    Tool for reading simulation dumps with different extensions
 
+    Args:
+        filename (str): file name
+        format (str): file format
+    """
+
+    def __init__(self, filename, format='lammpstrj'):
         try:
             self.infile = open(filename, 'r')
             log.info("Successfully opened file: %s" % filename)
@@ -42,8 +67,8 @@ class Traj:
         Reads trajectory file frame by frame
 
         Args:
-            read_n: number of trajestories to read
-            read_n = -1: read the whole file
+            read_n (int): if positive: number of trajestories to read
+                if negative: read the whole file
         Returns:
             list of frames
         """
@@ -81,6 +106,14 @@ class Traj:
                         skipped)
 
     def _read_lammpstrj(self, skip):
+        """
+        Args:
+            skip (bool): True - skip one frame, False - read and return frame
+
+        Returns:
+            frame: single lammps frame
+        """
+
         infile = self.infile
         frame_info = {}
 
@@ -282,6 +315,13 @@ class Traj:
         return frame_output
 
     def _read_xyz(self, skip):
+        """
+        Args:
+            skip (bool): True - skip one frame, False - read and return frame
+
+        Returns:
+            frame: single xyz frame
+        """
 
         infile = self.infile
         frame_info = {}
@@ -343,9 +383,11 @@ class RMS:
 
     def set_active_box(self, active_box):
         """
+        Set up active_box variable after checking correctness of the argument
 
         Args:
-
+            active_box (list): [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
+                only atoms in box will be taken into account during analysis
         """
         try:
             self.active_box = numpy.array([[active_box[0][0], active_box[0][1]],
@@ -367,7 +409,7 @@ class RMS:
 
     def find_activ_box(self, h_ratio=0.5):
         """
-        Find box large enough to fit all atoms inside
+        Find box large enough to fit all atoms
 
         Args:
             h_ratio : what part of the atoms in the box will be used for
@@ -382,11 +424,18 @@ class RMS:
 
     def get_surf_array_oa2d(self, lc_rep):
         """
+        oa2d - one atom (per cell) 2 dimensional array
+
+        Assigns atoms to 2D grid in xy plane. Each created cell contains
+        information only about atom with the largest z.
+
+        Larger lc_rep results in improved accuracy at the cost of computing time
 
         Args:
-            sampling_array : array of point for which height will be calculated
-            lc_rep : how many logic cells will be taken to calculate one point
-            1 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)  ...
+            sampling_array (numpy.ndarray): array of point for which height
+                will be calculated
+            lc_rep (int): how many logic cells will be taken to calculate
+                one point 1 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)...
         """
         # Step 1 - create array of logica cells
         # ------------------------------------
@@ -471,6 +520,18 @@ class RMS:
         return surface_array[:active_i]
 
     def calc_z_oa2d(self, probe_xy, sample_atom):
+        """
+        For a give pair of atoms probe-sample, calculate the maximum z which
+        probe atom can achive.
+
+        Args:
+            probe_xy (numpy.ndarray):
+            sample_atom (numpy.ndarray):
+
+        Returns:
+            None: if probe atom and sample atom does not touch
+            float: maximu z of probe atom
+        """
         r2 = self.r2
         dx = probe_xy[0] - sample_atom[0]
         dy = probe_xy[1] - sample_atom[1]
@@ -483,6 +544,13 @@ class RMS:
             return math.sqrt(r2-dxy2)+z
 
     def calc_sampling_points(self, jump=1.0, offset=1.0):
+        """
+        Generate and set evenly spaced sampling points in xy plane
+
+        Args:
+            jump (optional float): grid spacing
+            offset (oprional float): offset on sides
+        """
         if not self.active_box_flag:
             self.find_activ_box()
         dim_x = self.active_box[0]
@@ -496,12 +564,26 @@ class RMS:
         self.sampling_points_flag = True
 
     def set_sampling_points(self, array):
-        # add array corectness verification
+        """
+        Sets sampling poins
+
+        Args:
+            array (numpy.ndarray): arry in xy plane of sampling points
+        """
 
         self.sampling_array = array
         self.sampling_points_flag = True
 
     def compute(self, lc_rep=2):
+        """
+        Compute rms for previously passed parameters
+
+        Args:
+            lc_rep (int): how many logic cells will be taken to calculate one
+            point, 1 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)  ...
+
+        float: rms
+        """
         if not self.active_box_flag:
             self.find_activ_box()
 
