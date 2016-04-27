@@ -23,19 +23,25 @@ def get(frame, field):
 
     try:
         if type(frame) == list and type(frame[0]) == dict:
+            fields = frame[0]['format']
             index = frame[0]['format'].index(field) + 1
             return frame[index]
         elif type(frame) == list and type(frame[0]) == list and type(frame[0][0]) == dict:
+            fields = frame[0][0]['format']
             out_array = []
             for i in xrange(len(frame)):
                 index = frame[i][0]['format'].index(field) + 1
                 out_array.append(frame[i][index])
             return out_array
         else:
-            log.warining("This is not a frame or a list of frames."
+            log.warning("This is not a frame or a list of frames."
                         "This function accepts returns from analyze.Traj.return()")
-    except:
-        log.warining("Something went wong when getting field: %s" % field)
+    except Exception as exp:
+        print type(exp)
+        print exp
+        log.warning("Something went wong when getting field: %s" % field)
+        log.warning("Maybe field does not exist. Available fields:\n%s"
+                    % str(fields))
 
     return None
 

@@ -18,6 +18,7 @@ Write bonds analyze
 
 Expand write module
 	[**  ] {----} add lmpdat basic functionality
+	[*   ] {----} writing using array of frames (not only single frame)
 
 Improve create module
 	[*   ] {----} write sensible documentation
