@@ -370,13 +370,15 @@ class RMS:
         r_probe : vdw radius of probe atom
         active_box (optional array (3,2)): box in which the atoms are included
         in rms calcuation, if None - program will find optimal box
+        offset : offset for automaticli search of optimum box
     """
-    def __init__(self, coords, r_sample, r_probe, active_box=None):
+    def __init__(self, coords, r_sample, r_probe, active_box=None, offset=1.0):
         self.coords = coords         # array of surface atoms coordinates
         self.r_sample = r_sample     # r vdw of surface atoms
         self.r_probe = r_probe       # r vdw of probe atom
         self.r = r_sample + r_probe  # total bond r vdw surface-probe
         self.r2 = self.r*self.r
+        self.offset = offset
 
         self.sampling_points_flag = False
         self.active_box_flag = False
@@ -443,12 +445,18 @@ class RMS:
             lc_rep (int): how many logic cells will be taken to calculate
                 one point 1 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)...
         """
+        if not self.active_box_flag:
+            self.find_activ_box()
+
+        if not self.sampling_points_flag:
+            self.calc_sampling_points()
+
         # Step 1 - create array of logica cells
         # ------------------------------------
         r = self.r/float(lc_rep)
         lc_rep = int(lc_rep)
         active_box = self.active_box
-        offset = 0.01
+        offset = self.offset
         sampling_array = self.sampling_array
 
         x_dimension = active_box[0][1] - active_box[0][0] + offset
@@ -586,16 +594,10 @@ class RMS:
 
         Args:
             lc_rep (int): how many logic cells will be taken to calculate one
-            point, 1 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)  ...
+            point, 2 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)  ...
 
         float: rms
         """
-        if not self.active_box_flag:
-            self.find_activ_box()
-
-        if not self.sampling_points_flag:
-            self.calc_sampling_points()
-
         surf_array = self.get_surf_array_oa2d(lc_rep)
 
         z_ave = numpy.average(surf_array[:,2])
@@ -605,3 +607,55 @@ class RMS:
             z_sq_sum += res*res
 
         return math.sqrt(z_sq_sum/len(surf_array))
+
+    def get_surface_matrix(self, size, lc_rep=2, ground=0.0):
+        """
+        Maping of surf array on NxN matrix which could the be used for dft
+
+        CAUTION - this function can scale dimensions if xdim != ydim
+
+        Args:
+            size (int) - length of matrix (size x size)
+
+        Returns:
+            surface_matrix (numpy.ndarray)
+        """
+
+        surf_array = self.get_surf_array_oa2d(lc_rep)
+
+        # Map results on matrix
+        surf_matrix = numpy.zeros((size, size), dtype=float)
+        matrix_occupation = numpy.zeros((size, size), dtype=int)
+
+        active_box = self.active_box
+        offset = self.offset
+        dimension_x = active_box[0][1] - active_box[0][0] + offset
+        dimension_y = active_box[1][1] - active_box[1][0] + offset
+
+        shift_x = active_box[0][1]
+        shift_y = active_box[1][1]
+
+        divider_x = dimension_x / float(size)
+        divider_y = dimension_y / float(size)
+
+        for i in xrange(len(surf_array)):
+            position = surf_array[i]
+
+            index_x = (position[0] + shift_x) / divider_x
+            index_y = (position[1] + shift_y) / divider_y
+
+            surf_matrix[index_x][index_y] += position[2]
+            matrix_occupation[index_x][index_y] += 1
+
+        # calculate average
+
+        for i in xrange(size):
+            for j in xrange(size):
+                occupation = matrix_occupation[index_x][index_y]
+                element_value = surf_matrix[index_x][index_y]
+                if occupation == 0:
+                    surf_matrix[index_x][index_y] = ground
+                else:
+                    surf_matrix[index_x][index_y] = float(element_value)/occupation
+
+        return surf_matrix

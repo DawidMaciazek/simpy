@@ -12,13 +12,17 @@
 %%%%%%%%%%%%    TO DO LIST    %%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Write bonds analyze
-	[*   ] {----} get already writen old code and try to reuse
+Minior improvements
+	[*   ] {----} change log formatting (especially error msg)
 
+Write bonds analyze
+	[**  ] {----} get already writen old code and try to reuse
 
 Expand write module
 	[**  ] {----} add lmpdat basic functionality
 	[*   ] {----} writing using array of frames (not only single frame)
+	[**  ] {----} rethink frame/frames returning/accepting policy
+	[*   ] {----} writing dummy types
 
 Improve create module
 	[*   ] {----} write sensible documentation
@@ -26,3 +30,6 @@ Improve create module
 	[**  ] {----} add and test molecule com
 	[*   ] {----} finish Crystal class
 
+
+RMS --- FIX BUGS
+	[**  ] {----} fix grid bugs
