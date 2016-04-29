@@ -12,6 +12,9 @@
 %%%%%%%%%%%%    TO DO LIST    %%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+GLOBAL
+	[**  ] {----} implement exit/return when log.error !
+
 Minior improvements
 	[*   ] {----} change log formatting (especially error msg)
 
