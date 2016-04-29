@@ -370,7 +370,7 @@ class RMS:
         r_probe : vdw radius of probe atom
         active_box (optional array (3,2)): box in which the atoms are included
         in rms calcuation, if None - program will find optimal box
-        offset : offset for automaticli search of optimum box
+        offset : for sampling array probing (final offset = offset * r_vdw)
     """
     def __init__(self, coords, r_sample, r_probe, active_box=None, offset=1.0):
         self.coords = coords         # array of surface atoms coordinates
@@ -378,7 +378,7 @@ class RMS:
         self.r_probe = r_probe       # r vdw of probe atom
         self.r = r_sample + r_probe  # total bond r vdw surface-probe
         self.r2 = self.r*self.r
-        self.offset = offset
+        self.offset = offset*self.r
 
         self.sampling_points_flag = False
         self.active_box_flag = False
@@ -453,17 +453,17 @@ class RMS:
 
         # Step 1 - create array of logica cells
         # ------------------------------------
-        r = self.r/float(lc_rep)
+        lc_r = self.r/float(lc_rep)
         lc_rep = int(lc_rep)
         active_box = self.active_box
-        offset = self.offset
         sampling_array = self.sampling_array
 
-        x_dimension = active_box[0][1] - active_box[0][0] + offset
-        y_dimension = active_box[1][1] - active_box[1][0] + offset
+        # + 0.01 is there to make sure the boundary conditions are no violated
+        x_dimension = active_box[0][1] - active_box[0][0] + 0.01
+        y_dimension = active_box[1][1] - active_box[1][0] + 0.01
 
-        x_rep = int(math.ceil(x_dimension/r))
-        y_rep = int(math.ceil(y_dimension/r))
+        x_rep = int(math.ceil(x_dimension/lc_r))
+        y_rep = int(math.ceil(y_dimension/lc_r))
 
         logical_cells = numpy.zeros((x_rep, y_rep, 3), dtype=float)
         logical_cells.fill(active_box[2][0])
@@ -474,8 +474,8 @@ class RMS:
         coords = self.coords
         # loop over all atoms and assign them to the appropriate cells
         for i in xrange(len(coords)):
-            x_index = int(math.floor(coords[i][0]+x_shift)/r)
-            y_index = int(math.floor(coords[i][1]+y_shift)/r)
+            x_index = int(math.floor(coords[i][0]+x_shift)/lc_r)
+            y_index = int(math.floor(coords[i][1]+y_shift)/lc_r)
             z = coords[i][2]
 
             # only one atom with highest z per logic cell
@@ -499,8 +499,8 @@ class RMS:
         for i in xrange(len(sampling_array)):
             # calculate index  corresponding to probe x y
             probe_xy = sampling_array[i]
-            x_index = int(math.floor(probe_xy[0]+x_shift)/r)
-            y_index = int(math.floor(probe_xy[1]+y_shift)/r)
+            x_index = int(math.floor(probe_xy[0]+x_shift)/lc_r)
+            y_index = int(math.floor(probe_xy[1]+y_shift)/lc_r)
 
             # check boundary conditions
             if x_index < lc_rep:
@@ -557,21 +557,22 @@ class RMS:
         else:
             return math.sqrt(r2-dxy2)+z
 
-    def calc_sampling_points(self, jump=1.0, offset=1.0):
+    def calc_sampling_points(self, jump=1.0):
         """
         Generate and set evenly spaced sampling points in xy plane
 
         Args:
             jump (optional float): grid spacing
-            offset (oprional float): offset on sides
         """
+        offset = self.offset
         if not self.active_box_flag:
             self.find_activ_box()
+
         dim_x = self.active_box[0]
         dim_y = self.active_box[1]
 
-        x = numpy.arange(dim_x[0] - offset, dim_x[1] - offset, jump)
-        y = numpy.arange(dim_y[0] - offset, dim_y[1] - offset, jump)
+        x = numpy.arange(dim_x[0] + offset, dim_x[1] - offset, jump)
+        y = numpy.arange(dim_y[0] + offset, dim_y[1] - offset, jump)
 
         X, Y = numpy.meshgrid(x, y)
         self.sampling_array = numpy.array([X.flatten(), Y.flatten()]).T
