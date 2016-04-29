@@ -341,7 +341,7 @@ class Traj:
         line = infile.readline()
         frame_info['comment'] = line
         # * TO DO * allow the acceptance of dditional fields
-        frame_info['fields'] = ['element', 'coords']
+        frame_info['format'] = ['element', 'coords']
 
         coords = numpy.empty([frame_atoms, 3], dtype=float)
         elements = [None]*frame_atoms
