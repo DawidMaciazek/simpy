@@ -380,8 +380,10 @@ class RMS:
         self.r2 = self.r*self.r
         self.offset = offset*self.r
 
-        self.sampling_points_flag = False
+        self.sampling_array_flag = False
+        self.sampling_array_dim_flag = False
         self.active_box_flag = False
+        self.surf_array_flag = False
 
         # set or find box in which surface atoms will be searched
         if active_box:
@@ -415,7 +417,7 @@ class RMS:
 
         self.active_box_flag = True
 
-    def find_activ_box(self, h_ratio=0.5):
+    def find_activ_box(self, h_ratio=1):
         """
         Find box large enough to fit all atoms
 
@@ -430,7 +432,7 @@ class RMS:
 
         self.set_active_box([[xmin, xmax], [ymin, ymax], [zmin, zmax]])
 
-    def get_surf_array_oa2d(self, lc_rep):
+    def get_surf_array_oa2d(self, lc_rep, format='array'):
         """
         oa2d - one atom (per cell) 2 dimensional array
 
@@ -439,17 +441,31 @@ class RMS:
 
         Larger lc_rep results in improved accuracy at the cost of computing time
 
+        Caution:
+            array may contain nan value
+
         Args:
             sampling_array (numpy.ndarray): array of point for which height
                 will be calculated
             lc_rep (int): how many logic cells will be taken to calculate
                 one point 1 - (square 3x3) 2 - (square 5x5) 3 - (square 7x7)...
+            format (str): return array format
+                array - (3, N) coords array
+                matrix - (N, N) matrix of z value
         """
+        if format not in ['array', 'matrix']:
+            log.error("Unknow surf array format: %s" % str(format))
+
         if not self.active_box_flag:
             self.find_activ_box()
 
-        if not self.sampling_points_flag:
-            self.calc_sampling_points()
+        if not self.sampling_array_flag:
+            self.calc_sampling_array()
+
+        if format == 'matrix' and not self.sampling_array_dim_flag:
+            log.error("format=matrix can only be used with automatically"
+                      "build surface_array")
+            return None
 
         # Step 1 - create array of logica cells
         # ------------------------------------
@@ -491,11 +507,10 @@ class RMS:
         x_index_max = int(x_rep - lc_rep)
         y_index_max = int(y_rep - lc_rep)
 
-        #
+        # neigh_template added to cell position gives neighbors of that cell
         neigh_template = numpy.arange(-lc_rep, lc_rep+1, 1, dtype=int)
 
-        surface_array = numpy.zeros((len(sampling_array), 3), dtype=float)
-        active_i = 0
+        surface_array = numpy.empty((len(sampling_array), 3), dtype=float)
         for i in xrange(len(sampling_array)):
             # calculate index  corresponding to probe x y
             probe_xy = sampling_array[i]
@@ -525,13 +540,25 @@ class RMS:
                                          logical_cells[x_n_index][y_n_index])
                     if z_new > z:
                         z = z_new
-            if z:
-                surface_array[active_i][0] = probe_xy[0]
-                surface_array[active_i][1] = probe_xy[1]
-                surface_array[active_i][2] = z
-                active_i += 1
+            surface_array[i][0] = probe_xy[0]
+            surface_array[i][1] = probe_xy[1]
+            surface_array[i][2] = z
 
-        return surface_array[:active_i]
+        if format == 'array':
+            self.surf_array_flag = True
+            return surface_array
+
+        # map array on matrix
+        if format == 'matrix':
+            xdim = self.sampling_array_x
+            ydim = self.sampling_array_y
+            print xdim
+            surface_matrix = numpy.empty((ydim, xdim), dtype=float)
+            for xi in xrange(xdim):
+                for yi in xrange(ydim):
+                    totali = xi*ydim + yi
+                    surface_matrix[yi][xi] = surface_array[totali][2]
+            return surface_matrix
 
     def calc_z_oa2d(self, probe_xy, sample_atom):
         """
@@ -557,9 +584,9 @@ class RMS:
         else:
             return math.sqrt(r2-dxy2)+z
 
-    def calc_sampling_points(self, jump=1.0):
+    def calc_sampling_array(self, jump=0.5):
         """
-        Generate and set evenly spaced sampling points in xy plane
+        Generate and set evenly spaced sampling array in xy plane
 
         Args:
             jump (optional float): grid spacing
@@ -574,11 +601,15 @@ class RMS:
         x = numpy.arange(dim_x[0] + offset, dim_x[1] - offset, jump)
         y = numpy.arange(dim_y[0] + offset, dim_y[1] - offset, jump)
 
+        self.sampling_array_x = len(x)
+        self.sampling_array_y = len(y)
+        self.sampling_array_dim_flag = True
+
         X, Y = numpy.meshgrid(x, y)
         self.sampling_array = numpy.array([X.flatten(), Y.flatten()]).T
-        self.sampling_points_flag = True
+        self.sampling_array_flag = True
 
-    def set_sampling_points(self, array):
+    def set_sampling_array(self, array):
         """
         Sets sampling poins
 
@@ -587,7 +618,7 @@ class RMS:
         """
 
         self.sampling_array = array
-        self.sampling_points_flag = True
+        self.sampling_array_flag = True
 
     def compute(self, lc_rep=2):
         """
@@ -599,64 +630,20 @@ class RMS:
 
         float: rms
         """
-        surf_array = self.get_surf_array_oa2d(lc_rep)
+        if not self.surf_array_flag:
+            surf_array = self.get_surf_array_oa2d(lc_rep, format='array')
 
         z_ave = numpy.average(surf_array[:,2])
         z_sq_sum = 0.0
+
+        valid_cnt = 0
         for i in xrange(len(surf_array)):
+            z_current = surf_array[i][2]
+            if numpy.isnan(z_current):
+                continue
+            valid_cnt += 1
             res = z_ave-surf_array[i][2]
             z_sq_sum += res*res
 
-        return math.sqrt(z_sq_sum/len(surf_array))
+        return math.sqrt(z_sq_sum/valid_cnt)
 
-    def get_surface_matrix(self, size, lc_rep=2, ground=0.0):
-        """
-        Maping of surf array on NxN matrix which could the be used for dft
-
-        CAUTION - this function can scale dimensions if xdim != ydim
-
-        Args:
-            size (int) - length of matrix (size x size)
-
-        Returns:
-            surface_matrix (numpy.ndarray)
-        """
-
-        surf_array = self.get_surf_array_oa2d(lc_rep)
-
-        # Map results on matrix
-        surf_matrix = numpy.zeros((size, size), dtype=float)
-        matrix_occupation = numpy.zeros((size, size), dtype=int)
-
-        active_box = self.active_box
-        offset = self.offset
-        dimension_x = active_box[0][1] - active_box[0][0] + offset
-        dimension_y = active_box[1][1] - active_box[1][0] + offset
-
-        shift_x = active_box[0][1]
-        shift_y = active_box[1][1]
-
-        divider_x = dimension_x / float(size)
-        divider_y = dimension_y / float(size)
-
-        for i in xrange(len(surf_array)):
-            position = surf_array[i]
-
-            index_x = (position[0] + shift_x) / divider_x
-            index_y = (position[1] + shift_y) / divider_y
-
-            surf_matrix[index_x][index_y] += position[2]
-            matrix_occupation[index_x][index_y] += 1
-
-        # calculate average
-
-        for i in xrange(size):
-            for j in xrange(size):
-                occupation = matrix_occupation[index_x][index_y]
-                element_value = surf_matrix[index_x][index_y]
-                if occupation == 0:
-                    surf_matrix[index_x][index_y] = ground
-                else:
-                    surf_matrix[index_x][index_y] = float(element_value)/occupation
-
-        return surf_matrix
