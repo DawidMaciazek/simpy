@@ -552,12 +552,11 @@ class RMS:
         if format == 'matrix':
             xdim = self.sampling_array_x
             ydim = self.sampling_array_y
-            print xdim
-            surface_matrix = numpy.empty((ydim, xdim), dtype=float)
+            surface_matrix = numpy.empty((xdim, ydim), dtype=float)
             for xi in xrange(xdim):
                 for yi in xrange(ydim):
                     totali = xi*ydim + yi
-                    surface_matrix[yi][xi] = surface_array[totali][2]
+                    surface_matrix[xi][yi] = surface_array[totali][2]
             return surface_matrix
 
     def calc_z_oa2d(self, probe_xy, sample_atom):
@@ -606,7 +605,7 @@ class RMS:
         self.sampling_array_dim_flag = True
 
         X, Y = numpy.meshgrid(x, y)
-        self.sampling_array = numpy.array([X.flatten(), Y.flatten()]).T
+        self.sampling_array = numpy.array([Y.flatten(), X.flatten()]).T
         self.sampling_array_flag = True
 
     def set_sampling_array(self, array):
