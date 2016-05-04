@@ -368,11 +368,14 @@ class RMS:
         coords (numpy float list (n, 3)):
         r_sample : vdw radius of sample atoms
         r_probe : vdw radius of probe atom
+        sampling_box (optional array (2,2)): box in which sampling array/matrix
+        will be created
         active_box (optional array (3,2)): box in which the atoms are included
         in rms calcuation, if None - program will find optimal box
         offset : for sampling array probing (final offset = offset * r_vdw)
     """
-    def __init__(self, coords, r_sample, r_probe, active_box=None, offset=1.0):
+    def __init__(self, coords, r_sample, r_probe, sampling_box=None,
+                 active_box=None, offset=1.0):
         self.coords = coords         # array of surface atoms coordinates
         self.r_sample = r_sample     # r vdw of surface atoms
         self.r_probe = r_probe       # r vdw of probe atom
@@ -391,6 +394,9 @@ class RMS:
         else:
             self.find_activ_box()
 
+        if sampling_box:
+            self.set_sampling_box(sampling_box)
+
     def set_active_box(self, active_box):
         """
         Set up active_box variable after checking correctness of the argument
@@ -404,6 +410,8 @@ class RMS:
                                            [active_box[1][0], active_box[1][1]],
                                            [active_box[2][0], active_box[2][1]]],
                                           dtype=float)
+            log.info("Active box set:\n" + str(self.active_box))
+
         except:
             log.error("Wrong active_box variable format, should be:"
                       " [[xmin, xmax], [ymin, ymax], [zmin, zmax]]")
@@ -431,6 +439,27 @@ class RMS:
         xmin, ymin, zmin = coords.min(axis=0)
 
         self.set_active_box([[xmin, xmax], [ymin, ymax], [zmin, zmax]])
+
+    def set_sampling_box(self, sampling_box):
+        """
+        Set up active_box variable after checking correctness of the argument
+
+        Args:
+            active_box (list): [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
+                only atoms in box will be taken into account during analysis
+        """
+        try:
+            self.sampling_box = numpy.array([[sampling_box[0][0], sampling_box[0][1]],
+                                             [sampling_box[1][0], sampling_box[1][1]]],
+                                             dtype=float)
+        except:
+            log.error("Wrong sampling_box variable format, should be:"
+                      " [[xmin, xmax], [ymin, ymax]]")
+
+        if (sampling_box[0][0] >= sampling_box[0][1]):
+            log.error("Ill-defined X demension for box")
+        if (sampling_box[1][0] >= sampling_box[1][1]):
+            log.error("Ill-defined Y demension for box")
 
     def get_surf_array_oa2d(self, lc_rep, format='array'):
         """
@@ -594,8 +623,8 @@ class RMS:
         if not self.active_box_flag:
             self.find_activ_box()
 
-        dim_x = self.active_box[0]
-        dim_y = self.active_box[1]
+        dim_x = self.sampling_box[0]
+        dim_y = self.sampling_box[1]
 
         x = numpy.arange(dim_x[0] + offset, dim_x[1] - offset, jump)
         y = numpy.arange(dim_y[0] + offset, dim_y[1] - offset, jump)

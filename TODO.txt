@@ -31,3 +31,5 @@ Improve create module
 	[**  ] {----} add and test molecule com
 	[*   ] {----} finish Crystal class
 
+Analyze module
+	[**  ] {####} repair bug in active_box RMS
