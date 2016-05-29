@@ -1,6 +1,7 @@
 """
 This module is used to analyze simulation results.
 """
+from simpy import tools
 import numpy
 import math
 import logging
@@ -68,7 +69,7 @@ class Traj:
         except AttributeError:
             log.error("Unknow file format: %s" % str(format))
 
-    def read(self, read_n=-1):
+    def read(self, read_n=None):
         """
         Reads trajectory file frame by frame
 
@@ -76,8 +77,13 @@ class Traj:
             read_n (int): if positive: number of trajestories to read
                 if negative: read the whole file
         Returns:
-            list of frames
+            frame  if read_n=None
+            list of frames  if reand_n=int
         """
+
+        if read_n is None:
+            log.info("Rading single frame")
+            return self.call_read(False)
 
         read_whole = False if read_n > 0 else True
         frame = True
@@ -206,7 +212,7 @@ class Traj:
                     coords_group = 2
                     coord_index = key_index
                     fields.append(numpy.zeros([frame_atoms, 3], dtype=float))
-                    frame_info['format'].append('coords')
+                    frame_info['format'].append('coord')
                     key_index += 1
 
                 if key == 'x':
@@ -224,7 +230,8 @@ class Traj:
                     coords_s_group = 2
                     coord_index = key_index
                     fields.append(numpy.zeros([frame_atoms, 3], dtype=float))
-                    frame_info['format'].append('coords_scaled')
+                    # coord_scaled
+                    frame_info['format'].append('coord_s')
                     key_index += 1
 
                 if key == 'xs':
@@ -242,7 +249,8 @@ class Traj:
                     coords_u_group = 2
                     coord_index = key_index
                     fields.append(numpy.zeros([frame_atoms, 3], dtype=float))
-                    frame_info['format'].append('coords_unwrapped')
+                    # coords unwrapped
+                    frame_info['format'].append('coord_uw')
                     key_index += 1
 
                 if key == 'xu':
@@ -252,8 +260,8 @@ class Traj:
                 elif key == 'zu':
                     key_proxy[proxy_index] = [coord_index, 2]
                 else:
-                    log.error("Something strange happend"
-                              " while assigning unwrapped coordinates to field")
+                    log.error("Something strange happend "
+                              "while assigning unwrapped coordinates to field")
 
             elif velocity_group and key in ['vx', 'vy', 'vz']:
                 if velocity_group == 1:
@@ -316,32 +324,34 @@ class Traj:
                 elif jproxy is not None:
                     fields[jproxy][i] = sp[j]
 
-        frame_output = [frame_info]
-        frame_output.extend(fields)
-        return frame_output
+        frame = tools.Frame()
+
+        for key in frame_info.keys():
+            frame.add(key, frame_info[key])
+
+        for i in range(len(fields)):
+            frame.add(frame_info['format'][i], fields[i])
+
+
+        return frame
 
     def _read_xyz(self, skip):
         """
-        Args:
-            skip (bool): True - skip one frame, False - read and return frame
-
-        Returns:
-            frame: single xyz frame
+        ---
         """
-
+        frame = tools.Frame()
         infile = self.infile
-        frame_info = {}
+
         line = infile.readline()
         if not line:
             return False
 
         frame_atoms = int(line)
-        frame_info['atoms'] = int(frame_atoms)
+        frame.add('size', int(frame_atoms))
 
         line = infile.readline()
-        frame_info['comment'] = line
-        # * TO DO * allow the acceptance of dditional fields
-        frame_info['format'] = ['element', 'coords']
+        frame.add('comment', line)
+        frame.add('format', ['element', 'coord'])
 
         coords = numpy.empty([frame_atoms, 3], dtype=float)
         elements = [None]*frame_atoms
@@ -357,7 +367,9 @@ class Traj:
             coords[i][0] = sl[1]
             coords[i][1] = sl[2]
             coords[i][2] = sl[3]
-        return [frame_info, elements, coords]
+        frame.add('element', elements)
+        frame.add('coord', coords)
+        return frame
 
 
 class RMS:
