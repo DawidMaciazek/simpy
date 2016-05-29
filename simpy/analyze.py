@@ -350,7 +350,7 @@ class Traj:
         frame.add('size', int(frame_atoms))
 
         line = infile.readline()
-        frame.add('comment', line)
+        frame.add('comment', line.rstrip())
         frame.add('format', ['element', 'coord'])
 
         coords = numpy.empty([frame_atoms, 3], dtype=float)
