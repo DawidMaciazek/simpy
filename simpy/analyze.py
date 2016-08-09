@@ -687,3 +687,16 @@ class RMS:
 
         return math.sqrt(z_sq_sum/valid_cnt)
 
+
+class Impact:
+    """
+    Tool for analyzing impact effect on material
+    -> impact energy propagation
+    -> displacment propagation
+
+    """
+
+    def __init__(self, frame):
+        self.frame = frame
+
+
