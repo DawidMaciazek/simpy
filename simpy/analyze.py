@@ -696,7 +696,12 @@ class Impact:
 
     """
 
-    def __init__(self, frame):
-        self.frame = frame
+    def __init__(self, frames):
+        self.frames = frames
 
+    def select_area(self, box):
+        self.box = box
+
+    def plot_scatter(self):
+        pass
 

@@ -12,6 +12,10 @@ class Frame:
             return len(self.record['coord'])
         return None
 
+
+    def keys(self):
+        return self.record.keys()
+
     def add(self, key, value):
         self.record[key] = value
 
