@@ -37,9 +37,28 @@ def draw_image(frames):
 
 
 def bining_test(frames, frame_no):
+
+    element = frames[frame_no]['element']
+    selel = np.array([True if el == 'Ag' else False for el in element])
+    strip = 4
+    xmax = 30
+    zmax = 20
     coord = frames[frame_no]['coord']
-    coord = coord[coord[:,1] < 4]
-    coord = coord[coord[:,1] > -4]
+    sely = np.logical_and(coord[:,1] < strip, coord[:,1] > -strip)
+    selx = np.logical_and(coord[:,0] < xmax, coord[:,0] > -xmax)
+    selz = np.logical_and(coord[:,2] < zmax, coord[:,0] > -xmax)
+    sel = np.logical_and(np.logical_and(selx, sely), selz)
+    sel = np.logical_and(sel, selel)
+
+
+    coord = coord[sel]
+
+    ek = frames[frame_no]['c_sput_ke']
+    ek = ek[sel]
+
+    ep = frames[frame_no]['c_sput_pe']
+    ep = ep[sel]
+
 
     tcoord = coord.transpose()
     x = tcoord[0]
@@ -64,13 +83,16 @@ def bining_test(frames, frame_no):
 
     atoms_img = np.zeros((xbins, zbins), dtype=float)
 
-    print xbin_id[:10]
-    print zbin_id[:10]
-
+    e = ep
     for i in xrange(len(x)):
-        atoms_img[xbin_id[i]-1][zbin_id[i]-1] += 1.0
+        atoms_img[xbin_id[i]-1][zbin_id[i]-1] += e[i]
+    maxy = (np.amin(e), np.amax(e))
+    print '[', np.amax(e), ',',  np.amin(e), ']'
+    print np.mean(e), '(', np.std(e), ')'
+    plt.hist(e, 50, range=maxy)
+    plt.show()
 
-    atoms_img_conv = ndimage.gaussian_filter(atoms_img, sigma=12 , order=0)
+    atoms_img_conv = ndimage.gaussian_filter(atoms_img, sigma=6 , order=0)
     plt.imshow(atoms_img_conv)
     plt.show()
 
@@ -79,6 +101,7 @@ iname = "Ag_50.lammpstrj"
 ifile = analyze.Traj(iname)
 frames = ifile.read(20)
 
+print frames[0].keys()
 for i in range(20):
     bining_test(frames, i)
 #draw_image(frames)
