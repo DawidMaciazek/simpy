@@ -41,37 +41,45 @@ def bining_test(frames, frame_no):
     element = frames[frame_no]['element']
     selel = np.array([True if el == 'Ag' else False for el in element])
     strip = 4
-    xmax = 30
-    zmax = 20
+    #xmax = 45
+    xmax = 100
+    zmax = 5
     coord = frames[frame_no]['coord']
     sely = np.logical_and(coord[:,1] < strip, coord[:,1] > -strip)
     selx = np.logical_and(coord[:,0] < xmax, coord[:,0] > -xmax)
-    selz = np.logical_and(coord[:,2] < zmax, coord[:,0] > -xmax)
+    selz = np.logical_and(coord[:,2] < zmax, coord[:,2] > -xmax)
     sel = np.logical_and(np.logical_and(selx, sely), selz)
     sel = np.logical_and(sel, selel)
 
 
-    coord = coord[sel]
-
     ek = frames[frame_no]['c_sput_ke']
+
+    element = np.array(element)
+    he_sel = np.logical_and(sel, ek > 18.0)
+    high_ek = element[he_sel]
+
     ek = ek[sel]
+    print high_ek
+    print coord[he_sel]
 
     ep = frames[frame_no]['c_sput_pe']
     ep = ep[sel]
 
+    coord = coord[sel]
+    ocoord = frames[0]['coord'][sel]
 
     tcoord = coord.transpose()
     x = tcoord[0]
     z = tcoord[2]
     #plt.plot(x, z, "o")
 
-    binsize = 0.15
+    binsize = 0.25
     offset = 0.1
-    xmin = np.amin(x) - offset
-    xmax = np.amax(x) + offset
+    xmin = -xmax  - offset
+    xmax = xmax + offset
 
-    zmin = np.amin(z) - offset
-    zmax = np.amax(z) + offset
+    zmin = -xmax - offset
+    zmax = zmax + offset
 
     xbin_range = np.arange(xmin, xmax, binsize)
     xbin_id = np.digitize(x, xbin_range)
@@ -83,26 +91,48 @@ def bining_test(frames, frame_no):
 
     atoms_img = np.zeros((xbins, zbins), dtype=float)
 
-    e = ep
-    for i in xrange(len(x)):
-        atoms_img[xbin_id[i]-1][zbin_id[i]-1] += e[i]
-    maxy = (np.amin(e), np.amax(e))
-    print '[', np.amax(e), ',',  np.amin(e), ']'
-    print np.mean(e), '(', np.std(e), ')'
-    plt.hist(e, 50, range=maxy)
-    plt.show()
+    energy_flag = False
+    occupy_flag = True
+    if energy_flag:
+        e = ep
+        for i in xrange(len(x)):
+            e_loc = e[i]+0.11
+            atoms_img[xbin_id[i]-1][zbin_id[i]-1] += e_loc
+        print '[', np.amax(e), ',',  np.amin(e), ']'
+        print np.mean(e), '(', np.std(e), ')'
+    elif occupy_flag:
+        for i in xrange(len(x)):
+            atoms_img[xbin_id[i]-1][zbin_id[i]-1] = 1.0
+        print np.amax(atoms_img)
+    else:
+        max_d = 0.0
+        for i in xrange(len(x)):
+            d = np.linalg.norm(coord[i]-ocoord[i])
+            if d > max_d:
+                max_d = d
+            if d > 5:
+                d = 5
+            atoms_img[xbin_id[i]-1][zbin_id[i]-1] += d
+        print max_d
+
+    #plt.hist(e, 50, range=maxy)
+    #plt.show()
 
     atoms_img_conv = ndimage.gaussian_filter(atoms_img, sigma=6 , order=0)
     plt.imshow(atoms_img_conv)
     plt.show()
 
 
+
+
 iname = "Ag_50.lammpstrj"
+iname = "/home/dawid/work/improvingSim/wave/simpleTest/Ag_100.lammpstrj"
 ifile = analyze.Traj(iname)
-frames = ifile.read(20)
+frames = ifile.read(40)
+
 
 print frames[0].keys()
-for i in range(20):
+for i in range(len(frames)):
     bining_test(frames, i)
 #draw_image(frames)
 
