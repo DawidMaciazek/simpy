@@ -1,0 +1,125 @@
+LAMMPS (30 Oct 2014)
+echo both
+units		metal
+atom_style	atomic
+boundary 	f f f
+atom_modify 	sort 1 1
+
+processors 	* * *
+
+variable	zvel index -2.5
+
+variable	length index 200
+variable	head index 8
+variable	r index 20
+
+variable	offset index 20
+
+variable	xmin equal -${r}-${offset}
+variable	xmin equal -20-${offset}
+variable	xmin equal -20-20
+variable	xmax equal ${r}+${offset}
+variable	xmax equal 20+${offset}
+variable	xmax equal 20+20
+
+variable	ymin equal -${r}-${offset}
+variable	ymin equal -20-${offset}
+variable	ymin equal -20-20
+variable	ymax equal ${r}+${offset}
+variable	ymax equal 20+${offset}
+variable	ymax equal 20+20
+
+variable	zmin equal -${length}-${offset}
+variable	zmin equal -200-${offset}
+variable	zmin equal -200-20
+variable	zmax equal ${offset}
+variable	zmax equal 20
+
+region		box block ${xmin} ${xmax}  ${ymin} ${ymax}  ${zmin} ${zmax} units box
+region		box block -40 ${xmax}  ${ymin} ${ymax}  ${zmin} ${zmax} units box
+region		box block -40 40  ${ymin} ${ymax}  ${zmin} ${zmax} units box
+region		box block -40 40  -40 ${ymax}  ${zmin} ${zmax} units box
+region		box block -40 40  -40 40  ${zmin} ${zmax} units box
+region		box block -40 40  -40 40  -220 ${zmax} units box
+region		box block -40 40  -40 40  -220 20 units box
+region		crystal cylinder z 0 0 ${r} -${length} 0 units box
+region		crystal cylinder z 0 0 20 -${length} 0 units box
+region		crystal cylinder z 0 0 20 -200 0 units box
+region		holder cylinder z 0 0 ${r} -${head} 0 units box
+region		holder cylinder z 0 0 20 -${head} 0 units box
+region		holder cylinder z 0 0 20 -8 0 units box
+
+# ---------------------------------------------
+create_box	1 box
+Created orthogonal box = (-40 -40 -220) to (40 40 20)
+  1 by 1 by 1 MPI processor grid
+
+lattice		fcc 4.078
+Lattice spacing in x,y,z = 4.078 4.078 4.078
+create_atoms	1 region crystal
+Created 14502 atoms
+
+pair_style	eam
+pair_coeff	* * Au_u3.eam
+
+neighbor	0.5 bin
+
+# ---------------------------------------------
+group		holder region holder
+586 atoms in group holder
+velocity	holder set 0 0 ${zvel} units box
+velocity	holder set 0 0 -2.5 units box
+
+# -----------------------------------------------
+compute		pea all pe/atom
+compute		kea all ke/atom
+
+dump		dump all custom 100 wave.lammpstrj id element x y z c_pea c_kea
+
+fix		nve all nve
+
+timestep 	0.02
+thermo		100
+run 		2000
+Memory usage per processor = 5.44191 Mbytes
+Step Temp E_pair E_mol TotEng Press 
+       0     19.94453   -55097.574            0    -55060.19    -4925.771 
+     100    74.332691   -55202.916            0   -55063.587   -509.82301 
+     200    70.366021   -55195.079            0   -55063.185    1285.3165 
+     300    78.805494   -55211.461            0   -55063.748    413.58438 
+     400     68.86198   -55191.845            0    -55062.77   -131.25379 
+     500    65.459823   -55185.652            0   -55062.954   -647.08749 
+     600    65.309408   -55185.193            0   -55062.777   -92.459352 
+     700    67.089094   -55188.778            0   -55063.026    137.04773 
+     800    66.724014   -55188.092            0   -55063.024    1191.8119 
+     900    67.668977   -55189.865            0   -55063.027    1069.1685 
+    1000    67.560449   -55189.579            0   -55062.944    32.712432 
+    1100    68.649699   -55191.647            0    -55062.97   -575.72976 
+    1200    70.985114   -55195.998            0   -55062.943   -457.06719 
+    1300    73.106286   -55199.991            0    -55062.96    171.97479 
+    1400    72.915286    -55199.69            0   -55063.018    712.55213 
+    1500    73.523457   -55200.854            0   -55063.041    592.72071 
+    1600    70.318011   -55194.753            0   -55062.949   -553.50163 
+    1700    67.915569   -55190.268            0   -55062.966   -1459.3558 
+    1800    69.865802   -55193.997            0    -55063.04   -641.64317 
+    1900    69.292221   -55192.897            0   -55063.015    248.31281 
+    2000    71.587769   -55197.179            0   -55062.995    678.59438 
+Loop time of 27.4675 on 1 procs for 2000 steps with 14502 atoms
+
+Pair  time (%) = 23.8604 (86.8677)
+Neigh time (%) = 2.54309 (9.25853)
+Comm  time (%) = 0.348033 (1.26707)
+Outpt time (%) = 0.417905 (1.52145)
+Other time (%) = 0.298082 (1.08522)
+
+Nlocal:    14502 ave 14502 max 14502 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    342675 ave 342675 max 342675 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 342675
+Ave neighs/atom = 23.6295
+Neighbor list builds = 200
+Dangerous builds = 200

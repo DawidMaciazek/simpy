@@ -1,0 +1,55 @@
+echo both
+units		metal
+atom_style	atomic
+boundary 	f f f
+atom_modify 	sort 1 1 
+
+processors 	* * *
+
+variable	zvel index -2.5
+
+variable	length index 200
+variable	head index 8
+variable	r index 20
+
+variable	offset index 20
+
+variable	xmin equal -${r}-${offset}
+variable	xmax equal ${r}+${offset}
+
+variable	ymin equal -${r}-${offset}
+variable	ymax equal ${r}+${offset}
+
+variable	zmin equal -${length}-${offset}
+variable	zmax equal ${offset}
+
+region		box block ${xmin} ${xmax}  ${ymin} ${ymax}  ${zmin} ${zmax} units box
+region		crystal cylinder z 0 0 ${r} -${length} 0 units box
+region		holder cylinder z 0 0 ${r} -${head} 0 units box
+
+# ---------------------------------------------
+create_box	1 box
+
+lattice		fcc 4.078
+create_atoms	1 region crystal
+
+pair_style	eam
+pair_coeff	* * Au_u3.eam
+
+neighbor	0.5 bin
+
+# ---------------------------------------------
+group		holder region holder
+velocity	holder set 0 0 ${zvel} units box
+
+# -----------------------------------------------
+compute		pea all pe/atom
+compute		kea all ke/atom
+
+dump		dump all custom 100 wave.lammpstrj id element x y z c_pea c_kea
+
+fix		nve all nve
+
+timestep 	0.02
+thermo		100
+run 		2000

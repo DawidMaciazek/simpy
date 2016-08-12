@@ -696,12 +696,43 @@ class Impact:
 
     """
 
-    def __init__(self, frames):
+    def __init__(self, frames, box=None):
+        # DEFAULT _ FOR _ NOW
+        self.set_box([[-20, 20], [-4, 4], [-20, 20]])
         self.frames = frames
 
-    def select_area(self, box):
-        self.box = box
+    def set_box(self, box):
+        try:
+            self.box = numpy.array([[box[0][0], box[0][1]],
+                                    [box[1][0], box[1][1]],
+                                    [box[2][0], box[2][1]]],
+                                   dtype=float)
+            log.info("Active box set:\n" + str(self.box))
 
-    def plot_scatter(self):
-        pass
+        except:
+            log.error("Wrong box variable format, should be:"
+                      " [[xmin, xmax], [ymin, ymax], [zmin, zmax]]")
 
+        if (box[0][0] >= box[0][1]):
+            log.error("Ill-defined X demension for box")
+        if (box[1][0] >= box[1][1]):
+            log.error("Ill-defined Y demension for box")
+        if (box[2][0] >= box[2][1]):
+            log.error("Ill-defined Z demension for box")
+
+        self.box_flag = True
+
+    def select(self, frame_current):
+        box = self.box
+        frame = self.frames[frame_current]
+        coord = frame['coord']
+        x = coord[:, 0]
+        y = coord[:, 0]
+        z = coord[:, 0]
+
+        selection_box = ((x > box[0][0]) & (x < box[0][1]) &
+                         (y > box[1][0]) & (y < box[2][1]) &
+                         (z > box[2][0]) & (z < box[2][1]))
+
+        selection = selection_box
+        return selection
