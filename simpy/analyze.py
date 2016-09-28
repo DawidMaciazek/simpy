@@ -361,14 +361,14 @@ class Traj:
         for i in xrange(frame_atoms):
             sl = infile.readline().split()
             coords[i][0] = sl[0]
-            coords[i][1] = sl[1]
-            coords[i][2] = sl[2]
+            coords[i][1] = sl[2]
+            coords[i][2] = -float(sl[1])
 
             zet[i] = sl[3]
 
             velocity[i][0] = sl[0]
-            velocity[i][1] = sl[1]
-            velocity[i][2] = sl[2]
+            velocity[i][1] = sl[2]
+            velocity[i][2] = -float(sl[1])
 
         frame.add('zet', zet)
         frame.add('coord', coords)
