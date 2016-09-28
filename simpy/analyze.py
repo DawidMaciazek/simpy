@@ -335,6 +335,47 @@ class Traj:
 
         return frame
 
+    def _read_crs(self, skip):
+        """
+        ---
+        """
+        frame = tools.Frame()
+        infile = self.infile
+
+        line = infile.readline()
+        if not line:
+            return False
+
+        frame_atoms = int(line)
+        frame.add('size', frame_atoms)
+
+        if skip:
+            for i in xrange(frame_atoms):
+                infile.readline()
+            return 1
+
+        coords = numpy.empty([frame_atoms, 3], dtype=float)
+        velocity = numpy.empty([frame_atoms, 3], dtype=float)
+        zet = numpy.empty(frame_atoms, dtype=int)
+
+        for i in xrange(frame_atoms):
+            sl = infile.readline().split()
+            coords[i][0] = sl[0]
+            coords[i][1] = sl[1]
+            coords[i][2] = sl[2]
+
+            zet[i] = sl[3]
+
+            velocity[i][0] = sl[0]
+            velocity[i][1] = sl[1]
+            velocity[i][2] = sl[2]
+
+        frame.add('zet', zet)
+        frame.add('coord', coords)
+        frame.add('velocity', velocity)
+
+        return frame;
+
     def _read_xyz(self, skip):
         """
         ---
@@ -370,6 +411,7 @@ class Traj:
         frame.add('element', elements)
         frame.add('coord', coords)
         return frame
+
 
 
 class RMS:
