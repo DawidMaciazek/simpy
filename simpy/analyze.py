@@ -628,6 +628,7 @@ class RMS:
             surface_array[i][2] = z
 
         if format == 'array':
+            self.surface_array = surface_array
             self.surf_array_flag = True
             return surface_array
 
@@ -714,6 +715,8 @@ class RMS:
         """
         if not self.surf_array_flag:
             surf_array = self.get_surf_array_oa2d(lc_rep, format='array')
+        else:
+            surf_array = self.surface_array
 
         z_ave = numpy.average(surf_array[:,2])
         z_sq_sum = 0.0
@@ -727,7 +730,7 @@ class RMS:
             res = z_ave-surf_array[i][2]
             z_sq_sum += res*res
 
-        return math.sqrt(z_sq_sum/valid_cnt)
+        return (z_ave, math.sqrt(z_sq_sum/valid_cnt))
 
 
 class Impact:
