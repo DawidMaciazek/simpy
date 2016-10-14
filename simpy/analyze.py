@@ -376,6 +376,47 @@ class Traj:
 
         return frame;
 
+    def _read_movie(self, skip):
+        """
+        ----
+        """
+        frame = tools.Frame()
+        infile = self.infile
+
+        line = infile.readline()
+        if not line:
+            return False
+
+        frame_atoms = int(line.split()[0])
+        line = infile.readline()
+
+        if skip:
+            for i in xrange(frame_atoms):
+                infile.readline()
+            return 1
+
+        coords = numpy.empty([frame_atoms, 3], dtype=float)
+        velocity = numpy.empty([frame_atoms, 3], dtype=float)
+        zet = numpy.empty(frame_atoms, dtype=int)
+
+        for i in xrange(frame_atoms):
+            sl = infile.readline().split()
+            coords[i][0] = sl[1]
+            coords[i][1] = sl[3]
+            coords[i][2] = -float(sl[2])
+
+            zet[i] = sl[0]
+
+            velocity[i][0] = sl[4]
+            velocity[i][1] = sl[6]
+            velocity[i][2] = -float(sl[5])
+
+        frame.add('zet', zet)
+        frame.add('coord', coords)
+        frame.add('velocity', velocity)
+
+        return frame
+
     def _read_xyz(self, skip):
         """
         ---
