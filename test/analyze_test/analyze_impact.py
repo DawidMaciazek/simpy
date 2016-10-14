@@ -1,9 +1,34 @@
 from simpy import analyze
+from simpy import tools
 import scipy.ndimage as ndimage
 import numpy as np
 import matplotlib.pyplot as plt
 
+class BinAtom:
+    def __init__(self, size, binSize):
+        self.size = size
+        self.binSize = binSize
 
+        self.init_bins()
+
+    def init_bins(self):
+        bins = []
+
+        for dim in self.size:
+            bins_num = int(np.ceil(float(dim[1] - dim[0])/self.binSize))
+            bins.append(bins_num)
+
+        self.bins = bins
+
+    def add(self, frame, weight=None):
+        size = self.size
+
+        coord = frame['coord']
+        selx = np.logical_and(coord[:,0] > size[0][0], coord[:,0] < size[0][1])
+        sely = np.logical_and(coord[:,1] > size[1][0], coord[:,1] < size[1][1])
+        selz = np.logical_and(coord[:,2] > size[2][0], coord[:,2] < size[2][1])
+
+        sel = np.logical_and(np.logical_and(selz, sely), selx)
 
 def test_area(frames):
     coord = frames[0]['coord']
@@ -41,15 +66,15 @@ def bining_test(frames, frame_no):
 
     #element = frames[frame_no]['element']
     #selel = np.array([True if el == 'Ag' else False for el in element])
-    strip = 3
+    strip = 5
     #xmax = 45
-    xmax = 10
-    xmin = -10
-    zmax = 1
-    zmin = -100
+    xmax = 40
+    xmin = -40
+    zmax = 10
+    zmin = -40
     coord = frames[frame_no]['coord']
-    sely = np.logical_and(coord[:,1] < strip, coord[:,1] > -strip)
     selx = np.logical_and(coord[:,0] < xmax, coord[:,0] > xmin)
+    sely = np.logical_and(coord[:,1] < strip, coord[:,1] > -strip)
     selz = np.logical_and(coord[:,2] < zmax, coord[:,2] > zmin)
     sel = np.logical_and(np.logical_and(selx, sely), selz)
     #sel = np.logical_and(sel, selel)
@@ -58,11 +83,12 @@ def bining_test(frames, frame_no):
     ek = frames[frame_no]['c_kea']
 
     #element = np.array(element)
-    he_sel = np.logical_and(sel, ek > 18.0)
+    #he_sel = np.logical_and(sel, ek > 18.0)
     #high_ek = element[he_sel]
 
     ek = ek[sel]
-    print coord[he_sel]
+    print len(ek)
+    #print coord[he_sel]
 
     ep = frames[frame_no]['c_pea']
     ep = ep[sel]
@@ -75,7 +101,7 @@ def bining_test(frames, frame_no):
     z = tcoord[2]
     #plt.plot(x, z, "o")
 
-    binsize = 0.25
+    binsize = 0.5
     offset = 0.1
     xmin = xmin  - offset
     xmax = xmax + offset
@@ -93,7 +119,7 @@ def bining_test(frames, frame_no):
 
     atoms_img = np.zeros((xbins, zbins), dtype=float)
 
-    energy_flag = True
+    energy_flag = False
     occupy_flag = True
     if energy_flag:
         e = ek
@@ -119,7 +145,7 @@ def bining_test(frames, frame_no):
     #plt.hist(e, 50, range=maxy)
     #plt.show()
 
-    atoms_img_conv = ndimage.gaussian_filter(atoms_img, sigma=4 , order=0)
+    atoms_img_conv = ndimage.gaussian_filter(atoms_img, sigma=1 , order=0)
     plt.imshow(atoms_img_conv) #, vmin=0, vmax=0.01)
     plt.show()
 
@@ -129,14 +155,21 @@ def bining_test(frames, frame_no):
 iname = "Ag_50.lammpstrj"
 iname = "../../simulations/shockwave/wave.lammpstrj"
 ifile = analyze.Traj(iname)
-frames = ifile.read(20)
+frame = ifile.read()
 
 
 #print frames[0].keys()
-for i in range(len(frames)):
-    bining_test(frames, i)
-draw_image(frames)
+#for i in range(len(frames)):
+#    bining_test(frames, i)
+#draw_image(frames)
 
+binAtom = tools.BinAtom([[0, 10],[0,6],[-6,0]], 1)
+print binAtom.bin_size
+#print binAtom.bins
+print binAtom.bins_dim
+
+binAtom.add(frame)
+print binAtom.project_bins(axis=0)
 
 #impact = analyze.Impact(frames)
 #impact.select(0)
