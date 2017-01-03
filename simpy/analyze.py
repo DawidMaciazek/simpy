@@ -244,7 +244,7 @@ class Traj:
                     log.error("Something strange happend"
                               " while assigning scaled coordinates to field")
 
-            elif coords_u_group and key in ['xs', 'ys', 'zs']:
+            elif coords_u_group and key in ['xu', 'yu', 'zu']:
                 if coords_u_group == 1:
                     coords_u_group = 2
                     coord_index = key_index
