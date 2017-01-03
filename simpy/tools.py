@@ -82,7 +82,6 @@ class Frame:
             return len(self.record['coord'])
         return None
 
-
     def keys(self):
         return self.record.keys()
 
@@ -90,12 +89,76 @@ class Frame:
         self.record[key] = value
 
     def gen_types(self, atom_type=1):
-        atoms = len(self['coord'])
+        atoms = self.__len__()
         self.add('type', [atom_type]*atoms)
 
     def gen_element(self, element_name='H'):
-        atoms = len(self['coord'])
+        atoms = self.__len__()
         self.add('element', [element_name]*atoms)
+
+    def remove_bool_list(self, remove_list):
+        keep_list = np.logical_not(remove_list)
+        removed_atoms = sum(remove_list)
+        for key in self['format']:
+            self.record[key] = self[key][keep_list]
+            log.info("{} atoms removed from field {}".format(removed_atoms, key))
+        # update len
+        self.record["atoms"] = self.__len__()
+
+    def remove_element(self, element_name):
+        if "element" not in self.keys():
+            log.warning("This frame does not have element field")
+            return
+
+        log.info("Removing {} element".format(element_name))
+
+        elements = self['element']
+        remove_list = (elements == element_name)
+        self.remove_bool_list(remove_list)
+
+    def remove_lesser_than(self, value, axis):
+        if 'coord' not in self.record:
+            log.warn("This frame does not have suitable coordinate system")
+            return
+
+        coords = self.record['coord']
+        remove_list = coords[:,axis] < value
+        self.remove_bool_list(remove_list)
+
+    def periodic(self, period):
+        if 'box' not in self.keys():
+            log.warning("Periodic operation requires box field")
+            return
+        box = self.record['box']
+
+        box_size = []
+        box_size.append(box[0][1] - box[0][0])
+        box_size.append(box[1][1] - box[1][0])
+        box_size.append(box[2][1] - box[2][0])
+
+        for i in range(3):
+            base = {}
+            for key in self.keys():
+                base[key] = self.record[key]
+
+            for j in range(period[i][0], period[i][1]+1):
+                if j == 0:
+                    continue
+
+                shifted_base = np.zeros(base["coord"].shape, dtype=float)
+                shifted_base[:,i] += j*box_size[i]
+
+                self.record["coord"] = np.append(self.record["coord"], base["coord"] + shifted_base, axis=0)
+
+                for key in self.record["format"]:
+                    if key == "coord":
+                        continue
+                    self.record[key] = np.append(self.record[key], base[key])
+
+        # update box size and atoms
+        self.record["atoms"] = self.__len__()
+        self.record["box"] = [ [box[i][0] + box_size[i]*period[i][0], box[i][1] + box_size[i]*period[i][1]] for i in range(3) ]
+
 
     def select(self, box):
         """

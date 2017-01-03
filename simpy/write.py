@@ -47,7 +47,7 @@ class xyz:
 
         coords = frame['coord']
         elements = frame['element']
-        if not elements:
+        if elements is None:
             elements = frame['types']
             if not elements:
                 frame.gen_element()

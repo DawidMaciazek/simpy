@@ -56,6 +56,8 @@ class Traj:
         format (str): file format
     """
 
+    element_string_size = "S5"
+
     def __init__(self, filename, format='lammpstrj'):
         try:
             self.infile = open(filename, 'r')
@@ -296,10 +298,11 @@ class Traj:
 
             elif key == 'element':
                 frame_info['format'].append(key)
-                # *TO DO* upgrade from simple python string list
-                fields.append([None]*frame_atoms)
+                element_string_list = numpy.zeros(frame_atoms, dtype=Traj.element_string_size)
+                fields.append(element_string_list)
                 key_proxy[proxy_index] = key_index
                 key_index += 1
+
             else:
                 fields.append(numpy.zeros(frame_atoms, dtype=float))
                 frame_info['format'].append(key)
@@ -332,7 +335,23 @@ class Traj:
         for i in range(len(fields)):
             frame.add(frame_info['format'][i], fields[i])
 
+        # append missing coord with
+        if 'coord' not in frame.keys():
+            if 'coord_s' in frame.keys():
+                frame.add('coord', frame['coord_s'])
+                del frame.record['coord_s']
+                frame['format'].remove('coord_s')
+                frame['format'].append('coord')
 
+                log.info("Assingning {} to coord field".format('coord_s'))
+
+            elif 'coord_uw' in frame.keys():
+                frame.add('coord', frame['coord_uw'])
+                del frame.record['coord_uw']
+                frame['format'].remove('coord_uw')
+                frame['format'].append('coord')
+
+                log.info("Assingning {} to coord field".format('coord_uw'))
         return frame
 
     def _read_crs(self, skip):
@@ -436,7 +455,7 @@ class Traj:
         frame.add('format', ['element', 'coord'])
 
         coords = numpy.empty([frame_atoms, 3], dtype=float)
-        elements = [None]*frame_atoms
+        elements = numpy.zeros(frame_atoms, dtype=Traj.element_string_size)
 
         if skip:
             for i in xrange(frame_atoms):
