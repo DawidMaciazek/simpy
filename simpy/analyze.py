@@ -763,6 +763,16 @@ class RMS:
         self.sampling_array = array
         self.sampling_array_flag = True
 
+    def get_frame(self):
+        frame = tools.Frame()
+        if not self.surf_array_flag:
+            surf_array = self.get_surf_array_oa2d(lc_rep, format='array')
+
+        frame.add('coord', self.surface_array)
+        frame.gen_element('H')
+        return  frame
+
+
     def compute(self, lc_rep=2):
         """
         Compute rms for previously passed parameters

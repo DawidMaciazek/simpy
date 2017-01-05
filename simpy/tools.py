@@ -107,13 +107,24 @@ class Frame:
 
     def remove_element(self, element_name):
         if "element" not in self.keys():
-            log.warning("This frame does not have element field")
+            log.warning("This frame does not have element field - nothing will be removed")
             return
 
         log.info("Removing {} element".format(element_name))
 
         elements = self['element']
         remove_list = (elements == element_name)
+        self.remove_bool_list(remove_list)
+
+    def remove_type(self, type_name):
+        if "type" not in self.keys():
+            log.warning("This frame does not have type field - nothing will be removed")
+            return
+
+        log.info("Removing {} type".format(type_name))
+
+        type = self['type']
+        remove_list = (type == type_name)
         self.remove_bool_list(remove_list)
 
     def remove_lesser_than(self, value, axis):
