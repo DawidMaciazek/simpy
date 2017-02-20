@@ -144,8 +144,7 @@ class Lattice:
         log.info("Current lattice vectors:\n%s" % str(self.lattice_vectors))
 
     def set_lattice_miller(self, lat_constant, miller, miller_angle):
-        log.info("Using lattice constant: %s, miller vector: %s and miller angle %s"
-                 % (str(lat_constant), str(miller), str(miller_angle)))
+        log.info("Using lattice constant: {}, miller vector: {} and miller angle {}".format(lat_constant, miller,miller_angle))
 
         try:
             miller = numpy.array([miller[0], miller[1], miller[2]], dtype=float)
@@ -190,10 +189,6 @@ class Lattice:
         b = self.lattice_vectors[1]
         c = self.lattice_vectors[2]
 
-        bs = self.box_size
-        bs_vector = numpy.array([[bs[0][0], bs[1][0], bs[2][0]],
-                                 [bs[0][1], bs[1][1], bs[2][1]]])
-
         # calculate jumps size and starting point
         plane_point = numpy.empty((3, 3), dtype=float)
         norm_vec = numpy.empty((3, 3), dtype=float)
@@ -208,9 +203,9 @@ class Lattice:
         plane_factor = numpy.empty(3, dtype=float)
 
         for i in xrange(3):
-            plane_factor[i] = (norm_vec[i][0]*plane_point[i][0]
-                               + norm_vec[i][1]*plane_point[i][1]
-                               + norm_vec[i][2]*plane_point[i][2])
+            plane_factor[i] = (norm_vec[i][0]*plane_point[i][0] +
+                               norm_vec[i][1]*plane_point[i][1] +
+                               norm_vec[i][2]*plane_point[i][2])
 
         # find planes cross
         start_vec = numpy.linalg.solve(norm_vec, plane_factor)
@@ -225,31 +220,31 @@ class Lattice:
             for bi in xrange(int(jumps[1])+1):
                 alvl = numpy.copy(blvl)
                 for ai in xrange(int(jumps[0])+1):
-                    if (alvl > bs_vector[0]).all() and (alvl < bs_vector[1]).all():
-                        nodes[node_id][0] = alvl[0]
-                        nodes[node_id][1] = alvl[1]
-                        nodes[node_id][2] = alvl[2]
-                        node_id += 1
+                    nodes[node_id][0] = alvl[0]
+                    nodes[node_id][1] = alvl[1]
+                    nodes[node_id][2] = alvl[2]
+                    node_id += 1
                     alvl += a
                 blvl += b
             clvl += c
 
-        nodes = nodes[:node_id]
         lattice_vectors = self.lattice_vectors
+        bs = self.box_size
         if (self.lattice_system == "pcc"):
-            return nodes
+            pass
 
         elif (self.lattice_system == "bcc"):
             nodes_ex = nodes + numpy.sum(lattice_vectors * 0.5, axis=0)
-            return numpy.concatenate((nodes, nodes_ex), axis=0)
+            nodes = numpy.concatenate((nodes, nodes_ex), axis=0)
 
         elif (self.lattice_system == "fcc"):
             nodes_ex0 = nodes + (lattice_vectors[0] + lattice_vectors[1]) * 0.5
             nodes_ex1 = nodes + (lattice_vectors[1] + lattice_vectors[2]) * 0.5
             nodes_ex2 = nodes + (lattice_vectors[2] + lattice_vectors[0]) * 0.5
 
-            return numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2),
-                                     axis=0)
+            nodes = numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2),
+                                      axis=0)
+
         elif (self.lattice_system == "diamond"):
             nodes_ex0 = nodes + (lattice_vectors[0] + lattice_vectors[1]) * 0.5
             nodes_ex1 = nodes + (lattice_vectors[1] + lattice_vectors[2]) * 0.5
@@ -266,9 +261,23 @@ class Lattice:
                                  lattice_vectors[1]*0.25 +
                                  lattice_vectors[2]*0.75)
 
-            return numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2,
-                                      nodes_ex3, nodes_ex4, nodes_ex5,
-                                      nodes_ex6), axis=0)
+            nodes = numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2,
+                                       nodes_ex3, nodes_ex4, nodes_ex5,
+                                       nodes_ex6), axis=0)
+
+        x_list = numpy.logical_and(nodes[:, 0] > bs[0][0],
+                                   nodes[:, 0] < bs[0][1])
+        y_list = numpy.logical_and(nodes[:, 1] > bs[1][0],
+                                   nodes[:, 1] < bs[1][1])
+        z_list = numpy.logical_and(nodes[:, 2] > bs[2][0],
+                                   nodes[:, 2] < bs[2][1])
+
+        final_list = numpy.logical_and(z_list,
+                                       numpy.logical_and(x_list, y_list))
+
+        nodes = nodes[final_list]
+        return nodes
+
 
     def find_jumps_vec(self, v1, v2, v3):
         # calculate normal vector to the plane
