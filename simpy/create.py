@@ -273,7 +273,7 @@ class Lattice:
     def find_jumps_vec(self, v1, v2, v3):
         # calculate normal vector to the plane
         norm_vec = numpy.cross(v1, v2)
-        norm_vec = numpy.multiply(norm_vec, 1.0/numpy.linalg.norm(norm_vec))
+        norm_vec = norm_vec/numpy.linalg.norm(norm_vec)
 
         # find max and min vectors
         corners = self.box_corners
@@ -292,8 +292,9 @@ class Lattice:
         origin_shift_full = numpy.dot(self.origin, norm_vec)
         origin_shift = jump_size*math.modf(origin_shift_full/jump_size)[0]
 
-        start_len = math.ceil((mincr + origin_shift)/jump_size)*jump_size
-        jumps = math.floor((maxcr - start_len)/jump_size)
+        # for safety one jump before and after
+        start_len = (math.ceil((mincr + origin_shift)/jump_size)-1)*jump_size
+        jumps = math.floor((maxcr - start_len)/jump_size)+2
         start_vec = numpy.multiply(norm_vec, start_len)
 
         return (jumps, norm_vec, start_vec)
