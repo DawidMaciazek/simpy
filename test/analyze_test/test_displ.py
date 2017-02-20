@@ -48,7 +48,7 @@ class ResultWriter:
         self.abs_bin_size = 1
 
         self.abs_bin_start = 0
-        self.abs_bin_end = 100
+        self.abs_bin_end = 200
 
         self.abs_bin_steps = (self.abs_bin_end-self.abs_bin_start)/self.abs_bin_size + 1
         self.abs_bin_centers = np.linspace(self.abs_bin_start, self.abs_bin_end, self.abs_bin_steps)
@@ -245,7 +245,7 @@ class ResultWriter:
 
     def calc_displ(self, mode):
         # z
-        data_z_bin_index = np.digitize(self.shifted_list[mode][:,2], self.z_bin_edges)
+        data_z_bin_index = np.digitize(self.shifted_list[mode][:,0], self.z_bin_edges)
 
         for bin_index in data_z_bin_index:
             self.z_bin_total_cnt[mode][bin_index] += 1
@@ -264,6 +264,9 @@ class ResultWriter:
         # abs
         for center, cnt in zip(self.abs_bin_centers, self.abs_bin_total_cnt[mode]):
             self.abs_displ[mode].write("{} {}\n".format(center, cnt/self.analyzed_total))
+
+            np.
+
 
     def write_erosive(self, mode):
         box_len_x = -self.box[0][0] + self.box[0][1]
@@ -357,5 +360,5 @@ class ResultWriter:
         self.write_displ(1)
 
 reswrite = ResultWriter("/home/dawid/dumps/hobler_redist/diff_deg/dumpse_80", "/tmp")
-reswrite.run([500,2500], 50)
+reswrite.run([500,2500], 10)
 
