@@ -197,6 +197,7 @@ class Lattice:
         # calculate jumps size and starting point
         plane_point = numpy.empty((3, 3), dtype=float)
         norm_vec = numpy.empty((3, 3), dtype=float)
+
         # number of jumps in each dimension
         jumps = numpy.empty(3, dtype=int)
 
@@ -333,7 +334,7 @@ class Molecule:
         average = numpy.average(coords, axis=0)
 
         for i in xrange(self.coords_n):
-            coords[i] = coords[i] + average
+            self.coords[i] = coords[i] - average
 
     def center_atom(self, atom_id=0):
         # center on atom, default first
@@ -419,5 +420,24 @@ class Crystal:
 class System:
     def __init__(self):
         pass
+
+class shape:
+    @staticmethod
+    def inside_box(xmin, xmax, ymin, ymax, zmin, zmax):
+        return lambda x, y, z: x >= xmin and x <= xmax and y >= ymin and \
+            y <= xmax and z >= zmin and z <= zmax
+
+    @staticmethod
+    def outside_box(xmin, xmax, ymin, ymax, zmin, zmax):
+        return lambda x, y, z: not (x >= xmin and x <= xmax and y >= ymin \
+                                    and y <= xmax and z >= zmin and z <= zmax)
+
+    @staticmethod
+    def inside_sphere(x0, y0, z0, r):
+        return lambda x, y, z: (x-x0)**2 + (y-y0)**2 + (z-z0)**2 <= r**2
+
+    @staticmethod
+    def outside_sphere(x0, y0, z0, r):
+        return lambda x, y, z: (x-x0)**2 + (y-y0)**2 + (z-z0)**2 > r**2
 
 
