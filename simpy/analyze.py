@@ -38,8 +38,6 @@ def get(frame, field):
             log.warning("This is not a frame or a list of frames."
                         "This function accepts returns from analyze.Traj.return()")
     except Exception as exp:
-        print type(exp)
-        print exp
         log.warning("Something went wong when getting field: %s" % field)
         log.warning("Maybe field does not exist. Available fields:\n%s"
                     % str(fields))
@@ -224,7 +222,7 @@ class Traj:
                 elif key == 'z':
                     key_proxy[proxy_index] = [coord_index, 2]
                 else:
-                    log.error("Something strange happend"
+                    log.error("Something stxrange happend"
                               " while assigning coordinates to field")
 
             elif coords_s_group and key in ['xs', 'ys', 'zs']:
@@ -243,7 +241,7 @@ class Traj:
                 elif key == 'zs':
                     key_proxy[proxy_index] = [coord_index, 2]
                 else:
-                    log.error("Something strange happend"
+                    log.error("Something stxrange happend"
                               " while assigning scaled coordinates to field")
 
             elif coords_u_group and key in ['xu', 'yu', 'zu']:
@@ -262,7 +260,7 @@ class Traj:
                 elif key == 'zu':
                     key_proxy[proxy_index] = [coord_index, 2]
                 else:
-                    log.error("Something strange happend "
+                    log.error("Something stxrange happend "
                               "while assigning unwrapped coordinates to field")
 
             elif velocity_group and key in ['vx', 'vy', 'vz']:
@@ -280,7 +278,7 @@ class Traj:
                 elif key == 'vz':
                     key_proxy[proxy_index] = [velocity_index, 2]
                 else:
-                    log.error("Something strange happend"
+                    log.error("Something stxrange happend"
                               " while assigning fields")
 
             elif key == 'type':
@@ -332,7 +330,7 @@ class Traj:
         for key in frame_info.keys():
             frame.add(key, frame_info[key])
 
-        for i in range(len(fields)):
+        for i in xrange(len(fields)):
             frame.add(frame_info['format'][i], fields[i])
 
         # append missing coord with

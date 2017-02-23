@@ -1,5 +1,8 @@
 from simpy import analyze
 from simpy import write
+from scipy.signal import find_peaks_cwt
+from scipy.optimize import curve_fit
+
 from os import listdir
 import numpy as np
 import sys
@@ -102,6 +105,10 @@ class ResultWriter:
         if write_str == "w":
             self.kr_vs_si.write("traj volume volume_z_bottom volume_z_top  kr_cnt si_cnt\n")
 
+        self.amorphus_layer = open("{}/{}{}".format(output_dir, basename, "amorphous_layer_param.txt"), write_str)
+        if write_str == "w":
+            self.amorphus_layer.write("traj layer_width  interface_width  k_param\n")
+
     def calc_displacment(self, dir):
         traj = analyze.Traj(dir)
 
@@ -112,6 +119,7 @@ class ResultWriter:
         sid = sframe['id'][:-1]
         stype = sframe['type'][:-1]
 
+        self.amorph_coord = scoord[:, 2]
         self.start_all_z_list = [scoord[stype==2][:,2],
                                  scoord[stype==1][:,2]]
         self.box = sframe['box']
@@ -265,8 +273,6 @@ class ResultWriter:
         for center, cnt in zip(self.abs_bin_centers, self.abs_bin_total_cnt[mode]):
             self.abs_displ[mode].write("{} {}\n".format(center, cnt/self.analyzed_total))
 
-            np.
-
 
     def write_erosive(self, mode):
         box_len_x = -self.box[0][0] + self.box[0][1]
@@ -324,6 +330,52 @@ class ResultWriter:
 
         self.kr_vs_si.write("{} {} {} {}  {} {}\n".format(self.traj_num, volume, volume_bottom, volume_top, kr_cnt, si_cnt))
 
+    def write_amorphous_layer(self):
+
+        def sigmoid(x, x0, k, a, b):
+            return  a / (1.0 + np.exp(-k * (x - x0))) + b
+
+        cutoff_value = 0.2
+
+        lo = -160
+        hi = 10
+        bin_size = 0.1
+
+        bin_number = (hi - lo) / float(bin_size) + 1
+
+        bin_centers = np.linspace(lo, hi, bin_number)
+        bin_edges = bin_centers[:-1] + 0.5 * bin_size
+
+        bin_indexes = np.digitize(self.amorph_coord, bin_edges)
+
+        bin_cnt = np.zeros(bin_centers.shape, dtype=int)
+        for i in bin_indexes:
+            bin_cnt[i] += 1
+
+        # smooth peaks
+        bin_cnt = (bin_cnt + np.roll(bin_cnt, 1) + np.roll(bin_cnt, -1))/3.0
+
+        # remove last one for safety
+        peaks = find_peaks_cwt(bin_cnt, np.arange(5,10))[:-1]
+
+        xdata = bin_centers[peaks]
+        ydata = bin_cnt[peaks]
+
+        init_optimal = [-30, -0.1, 300, 100]
+        coef, pcov  = curve_fit(sigmoid, xdata, ydata, p0=init_optimal)
+
+        fit_curve = sigmoid(xdata, coef[0], coef[1], coef[2], coef[3])
+
+        if True:
+            tmp_write = np.transpose(np.array([xdata, ydata, fit_curve]))
+            np.savetxt("/tmp/curve_fit.txt", tmp_write)
+            np.savetxt("/tmp/hist_data.txt", np.transpose(np.array([bin_centers, bin_cnt])))
+
+
+        amorph_width = self.ave_surf - coef[0]
+        amorph_interface_width = (-1.0/coef[1])*np.log((1-cutoff_value)/cutoff_value)
+
+        self.amorphus_layer.write("{}  {} {} {}\n".format(self.traj_num, amorph_width, amorph_interface_width, coef[1]))
 
     def run(self, runrange=False, skip=1):
         if not runrange:
@@ -337,19 +389,26 @@ class ResultWriter:
 
             self.rms_file.write("{} {} {}\n".format(self.traj_num, self.ave_surf, self.rms_val))
 
+            # TO DO: write average
             self.write_erosive(0)
             self.write_erosive(1)
 
+            # TO DO: write average
             self.write_redist_sum(0)
             self.write_redist_sum(1)
 
+            # TO DO: write average better redistrubution
             self.calc_redist_funz(0)
             self.calc_redist_funz(1)
 
+            # TO DO: write average
+            # better bining methond (x^3)
             self.calc_displ(0)
             self.calc_displ(1)
 
             self.write_kr_vs_si()
+
+            self.write_amorphous_layer()
 
             self.analyzed_total += 1
 
@@ -360,5 +419,5 @@ class ResultWriter:
         self.write_displ(1)
 
 reswrite = ResultWriter("/home/dawid/dumps/hobler_redist/diff_deg/dumpse_80", "/tmp")
-reswrite.run([500,2500], 10)
+reswrite.run([750,751], 1)
 

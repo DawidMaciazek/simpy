@@ -39,7 +39,6 @@ class BinAtom:
         bin_size = self.bin_size
         bins = self.bins
         start_pos = [size[0][0], size[1][0], size[2][0]]
-        print start_pos
         for i in xrange(len(selected)):
             acoord = selected[i]
 
@@ -51,7 +50,6 @@ class BinAtom:
 
 
     def project_bins(self, axis=2, center=0.0, wmethod="linear"):
-        print "reutrn"
         return np.sum(self.bins, axis=axis)
 
 
