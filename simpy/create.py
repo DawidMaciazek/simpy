@@ -144,8 +144,7 @@ class Lattice:
         log.info("Current lattice vectors:\n%s" % str(self.lattice_vectors))
 
     def set_lattice_miller(self, lat_constant, miller, miller_angle):
-        log.info("Using lattice constant: %s, miller vector: %s and miller angle %s"
-                 % (str(lat_constant), str(miller), str(miller_angle)))
+        log.info("Using lattice constant: {}, miller vector: {} and miller angle {}".format(lat_constant, miller,miller_angle))
 
         try:
             miller = numpy.array([miller[0], miller[1], miller[2]], dtype=float)
@@ -190,13 +189,10 @@ class Lattice:
         b = self.lattice_vectors[1]
         c = self.lattice_vectors[2]
 
-        bs = self.box_size
-        bs_vector = numpy.array([[bs[0][0], bs[1][0], bs[2][0]],
-                                 [bs[0][1], bs[1][1], bs[2][1]]])
-
         # calculate jumps size and starting point
         plane_point = numpy.empty((3, 3), dtype=float)
         norm_vec = numpy.empty((3, 3), dtype=float)
+
         # number of jumps in each dimension
         jumps = numpy.empty(3, dtype=int)
 
@@ -207,9 +203,9 @@ class Lattice:
         plane_factor = numpy.empty(3, dtype=float)
 
         for i in xrange(3):
-            plane_factor[i] = (norm_vec[i][0]*plane_point[i][0]
-                               + norm_vec[i][1]*plane_point[i][1]
-                               + norm_vec[i][2]*plane_point[i][2])
+            plane_factor[i] = (norm_vec[i][0]*plane_point[i][0] +
+                               norm_vec[i][1]*plane_point[i][1] +
+                               norm_vec[i][2]*plane_point[i][2])
 
         # find planes cross
         start_vec = numpy.linalg.solve(norm_vec, plane_factor)
@@ -224,31 +220,31 @@ class Lattice:
             for bi in xrange(int(jumps[1])+1):
                 alvl = numpy.copy(blvl)
                 for ai in xrange(int(jumps[0])+1):
-                    if (alvl > bs_vector[0]).all() and (alvl < bs_vector[1]).all():
-                        nodes[node_id][0] = alvl[0]
-                        nodes[node_id][1] = alvl[1]
-                        nodes[node_id][2] = alvl[2]
-                        node_id += 1
+                    nodes[node_id][0] = alvl[0]
+                    nodes[node_id][1] = alvl[1]
+                    nodes[node_id][2] = alvl[2]
+                    node_id += 1
                     alvl += a
                 blvl += b
             clvl += c
 
-        nodes = nodes[:node_id]
         lattice_vectors = self.lattice_vectors
+        bs = self.box_size
         if (self.lattice_system == "pcc"):
-            return nodes
+            pass
 
         elif (self.lattice_system == "bcc"):
             nodes_ex = nodes + numpy.sum(lattice_vectors * 0.5, axis=0)
-            return numpy.concatenate((nodes, nodes_ex), axis=0)
+            nodes = numpy.concatenate((nodes, nodes_ex), axis=0)
 
         elif (self.lattice_system == "fcc"):
             nodes_ex0 = nodes + (lattice_vectors[0] + lattice_vectors[1]) * 0.5
             nodes_ex1 = nodes + (lattice_vectors[1] + lattice_vectors[2]) * 0.5
             nodes_ex2 = nodes + (lattice_vectors[2] + lattice_vectors[0]) * 0.5
 
-            return numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2),
-                                     axis=0)
+            nodes = numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2),
+                                      axis=0)
+
         elif (self.lattice_system == "diamond"):
             nodes_ex0 = nodes + (lattice_vectors[0] + lattice_vectors[1]) * 0.5
             nodes_ex1 = nodes + (lattice_vectors[1] + lattice_vectors[2]) * 0.5
@@ -265,14 +261,28 @@ class Lattice:
                                  lattice_vectors[1]*0.25 +
                                  lattice_vectors[2]*0.75)
 
-            return numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2,
-                                      nodes_ex3, nodes_ex4, nodes_ex5,
-                                      nodes_ex6), axis=0)
+            nodes = numpy.concatenate((nodes, nodes_ex0, nodes_ex1, nodes_ex2,
+                                       nodes_ex3, nodes_ex4, nodes_ex5,
+                                       nodes_ex6), axis=0)
+
+        x_list = numpy.logical_and(nodes[:, 0] > bs[0][0],
+                                   nodes[:, 0] < bs[0][1])
+        y_list = numpy.logical_and(nodes[:, 1] > bs[1][0],
+                                   nodes[:, 1] < bs[1][1])
+        z_list = numpy.logical_and(nodes[:, 2] > bs[2][0],
+                                   nodes[:, 2] < bs[2][1])
+
+        final_list = numpy.logical_and(z_list,
+                                       numpy.logical_and(x_list, y_list))
+
+        nodes = nodes[final_list]
+        return nodes
+
 
     def find_jumps_vec(self, v1, v2, v3):
         # calculate normal vector to the plane
         norm_vec = numpy.cross(v1, v2)
-        norm_vec = numpy.multiply(norm_vec, 1.0/numpy.linalg.norm(norm_vec))
+        norm_vec = norm_vec/numpy.linalg.norm(norm_vec)
 
         # find max and min vectors
         corners = self.box_corners
@@ -291,8 +301,9 @@ class Lattice:
         origin_shift_full = numpy.dot(self.origin, norm_vec)
         origin_shift = jump_size*math.modf(origin_shift_full/jump_size)[0]
 
-        start_len = math.ceil((mincr + origin_shift)/jump_size)*jump_size
-        jumps = math.floor((maxcr - start_len)/jump_size)
+        # for safety one jump before and after
+        start_len = (math.ceil((mincr + origin_shift)/jump_size)-1)*jump_size
+        jumps = math.floor((maxcr - start_len)/jump_size)+2
         start_vec = numpy.multiply(norm_vec, start_len)
 
         return (jumps, norm_vec, start_vec)
@@ -333,7 +344,7 @@ class Molecule:
         average = numpy.average(coords, axis=0)
 
         for i in xrange(self.coords_n):
-            coords[i] = coords[i] + average
+            self.coords[i] = coords[i] - average
 
     def center_atom(self, atom_id=0):
         # center on atom, default first
@@ -419,5 +430,24 @@ class Crystal:
 class System:
     def __init__(self):
         pass
+
+class shape:
+    @staticmethod
+    def inside_box(xmin, xmax, ymin, ymax, zmin, zmax):
+        return lambda x, y, z: x >= xmin and x <= xmax and y >= ymin and \
+            y <= xmax and z >= zmin and z <= zmax
+
+    @staticmethod
+    def outside_box(xmin, xmax, ymin, ymax, zmin, zmax):
+        return lambda x, y, z: not (x >= xmin and x <= xmax and y >= ymin \
+                                    and y <= xmax and z >= zmin and z <= zmax)
+
+    @staticmethod
+    def inside_sphere(x0, y0, z0, r):
+        return lambda x, y, z: (x-x0)**2 + (y-y0)**2 + (z-z0)**2 <= r**2
+
+    @staticmethod
+    def outside_sphere(x0, y0, z0, r):
+        return lambda x, y, z: (x-x0)**2 + (y-y0)**2 + (z-z0)**2 > r**2
 
 
