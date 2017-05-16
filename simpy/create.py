@@ -429,7 +429,13 @@ class Crystal:
 
 class System:
     def __init__(self):
-        pass
+        self.system_coords = numpy.empty((0, 3), dtype=float)
+        self.system_elements = numpy.empty((0, 3), dtype="S5")
+
+    def add_coords(self, elements, coords):
+        self.system_elements = numpy.append(self.system_elements, elements)
+        self.system_coords = numpy.append(self.system_coords, coords, axis=0)
+
 
 class shape:
     @staticmethod

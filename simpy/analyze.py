@@ -321,9 +321,18 @@ class Traj:
                 jproxy = key_proxy[j]
 
                 if isinstance(jproxy, list):
-                    fields[jproxy[0]][i][jproxy[1]] = sp[j]
+                    try:
+                        fields[jproxy[0]][i][jproxy[1]] = sp[j]
+                    except:
+                        log.warning("Data corruption, converting {} to -100.0".format(sp[j]))
+                        fields[jproxy[0]][i][jproxy[1]] = -100.0
+
                 elif jproxy is not None:
-                    fields[jproxy][i] = sp[j]
+                    try:
+                        fields[jproxy][i] = sp[j]
+                    except:
+                        fields[jproxy][i] = 1.0
+                        log.warning("Data corruption, converting {} to 1.0".format(sp[j]))
 
         frame = tools.Frame()
 
@@ -677,8 +686,10 @@ class RMS:
             # loop over all neighbors
             for x_n_index in x_neigh:
                 for y_n_index in y_neigh:
-                    z_new = self.calc_z_oa2d(probe_xy,
-                                         logical_cells[x_n_index][y_n_index])
+                    #z_new = self.calc_z_oa2d(probe_xy,
+                    #                     logical_cells[x_n_index][y_n_index])
+                    # hobler mod
+                    z_new = logical_cells[x_n_index][y_n_index][2]
                     if z_new > z:
                         z = z_new
             surface_array[i][0] = probe_xy[0]
@@ -764,7 +775,7 @@ class RMS:
     def get_frame(self):
         frame = tools.Frame()
         if not self.surf_array_flag:
-            surf_array = self.get_surf_array_oa2d(lc_rep, format='array')
+            self.surf_array = self.get_surf_array_oa2d(lc_rep, format='array')
 
         frame.add('coord', self.surface_array)
         frame.gen_element('H')

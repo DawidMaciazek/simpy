@@ -67,8 +67,13 @@ class BinAtom:
 
 
 class Frame:
-    def __init__(self):
+    def __init__(self, coord=None, element=None):
         self.record = {}
+        if coord is not None:
+            self.add("coord", coord)
+        if element is not None:
+            self.add("element", element)
+
 
     def __getitem__(self, key):
         if key in self.record:
@@ -93,6 +98,9 @@ class Frame:
     def gen_element(self, element_name='H'):
         atoms = self.__len__()
         self.add('element', [element_name]*atoms)
+
+    def types_to_element(self, edict):
+        self.add('element', np.vectorize(edict.get)(self.record['type']))
 
     def remove_bool_list(self, remove_list):
         keep_list = np.logical_not(remove_list)
