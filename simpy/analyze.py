@@ -321,18 +321,10 @@ class Traj:
                 jproxy = key_proxy[j]
 
                 if isinstance(jproxy, list):
-                    try:
-                        fields[jproxy[0]][i][jproxy[1]] = sp[j]
-                    except:
-                        log.warning("Data corruption, converting {} to -100.0".format(sp[j]))
-                        fields[jproxy[0]][i][jproxy[1]] = -100.0
+                    fields[jproxy[0]][i][jproxy[1]] = sp[j]
 
                 elif jproxy is not None:
-                    try:
-                        fields[jproxy][i] = sp[j]
-                    except:
-                        fields[jproxy][i] = 1.0
-                        log.warning("Data corruption, converting {} to 1.0".format(sp[j]))
+                    fields[jproxy][i] = sp[j]
 
         frame = tools.Frame()
 

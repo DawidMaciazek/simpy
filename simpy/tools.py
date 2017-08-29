@@ -64,6 +64,23 @@ class BinAtom:
                         pass
 
 
+def digitize3d(frame, boundary, bin_size):
+    #frame = frame.select(boundary)
+    boundary = np.array(boundary, dtype=float)
+    bin_steps = (boundary[:,1]-boundary[:,0])/bin_size + 1
+    bin_centers = [None] * 3
+    bin_edges = [None] * 3
+    bin_digitized = [None] * 3
+    for i in range(3):
+        bin_centers[i] = np.linspace(boundary[i][0], boundary[i][1], bin_steps[i])
+        bin_edges[i] = bin_centers[i][:-1]+(0.5*bin_size)
+        bin_digitized[i] = np.digitize(frame['coord'][:,i], bin_edges[i])
+    #bin_centers = np.array(bin_centers, dtype=float)
+    #bin_edges = np.array(bin_edges, dtype=float)
+    bin_digitized = np.array(bin_digitized, dtype=int).T
+
+    return  bin_digitized, bin_centers
+
 
 
 class Frame:
@@ -195,4 +212,8 @@ class Frame:
 
         oFrame = Frame()
         oFrame.add('coord', newCoord)
+        try:
+            oFrame.add("element", self["element"])
+        except:
+            pass
         return oFrame

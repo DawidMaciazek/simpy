@@ -7,7 +7,7 @@ import os
 import numpy as np
 import sys
 
-GLOBAL = open('/tmp/test.txt','w')
+GLOBAL_WRITE = open("/tmp/global.xyz", 'w')
 
 class ResultWriter:
     def __init__(self, input_dir, output_dir, impact_deg, extend=False, basename="", cutoff=0.001):
@@ -23,7 +23,6 @@ class ResultWriter:
         self.first_moment_histogram_dir = "{}/{}".format(output_dir, "m1_depth_redist")
 
         self.xhist_sputter_dir = "{}/{}".format(output_dir, "sput_x_histogram")
-        self.xhist_implanted_dir = "{}/{}".format(output_dir, "impl_x_histogram")
 
         self.depth_profile_dirname = "{}/{}".format(output_dir, "atoms_depth")
 
@@ -58,10 +57,6 @@ class ResultWriter:
         lbin_step = (lbin_end-lbin_start)/lbin_size+1
         self.xhist_bin_centers = np.linspace(lbin_start, lbin_end, lbin_step)
         self.xhist_bin_edges = self.xhist_bin_centers[:-1]+(0.5*lbin_size)
-
-        # x implanted binning
-        self.yhist_bin_centers = np.linspace(lbin_start, lbin_end, lbin_step)
-        self.yhist_bin_edges = self.yhist_bin_centers[:-1]+(0.5*lbin_size)
 
 
         # redist funz initialize
@@ -109,8 +104,6 @@ class ResultWriter:
         self.xhist_kr = np.zeros(self.xhist_bin_centers.shape, dtype=float)
         self.xhist_si = np.zeros(self.xhist_bin_centers.shape, dtype=float)
 
-        self.xhist_kr_implanted = np.zeros(self.xhist_bin_centers.shape, dtype=float)
-
         # abs displacement cnt
         self.abs_bin_size = 0.1
 
@@ -131,16 +124,7 @@ class ResultWriter:
 
         # Kr vs Si volume calculation
         self.ave_surf_dist = 10
-        self.volume_height = 5.431*4
-
-        # zeroth moment
-        self.m_zeroth = open("{}/{}{}".format(output_dir, basename, "zeroth_moment.txt"), write_str)
-        if write_str == "w":
-            self.m_zeroth.write("traj impl_mave_{0} kr_sput_mave_{0} si_sput_mave_{0}\n".format(self.analyze_interval))
-
-        self.mz_krimplanted = np.zeros((0,1), dtype=float)
-        self.mz_krsputt = np.zeros((0,1), dtype=float)
-        self.mz_sisputt = np.zeros((0,1), dtype=float)
+        self.volume_height = 20
 
         # first moment
         self.m_first = open("{}/{}{}".format(output_dir, basename, "first_moment.txt"), write_str)
@@ -270,12 +254,12 @@ class ResultWriter:
         sputtered = np.array(sputtered)
         sputtered_si_flag = np.array(sputtered_si_flag)
 
-        print "SPUTTERED", sputtered
         # sputtered atoms ....
         if len(sputtered_si_flag) != 0:
             #  (Si sputt, Kr sputt)
             sputt_list = (sputtered[sputtered_si_flag], sputtered[np.logical_not(sputtered_si_flag)])
         else:
+
             sputt_list = (None, None)
 
         # remove atoms below cutoff
@@ -449,9 +433,6 @@ class ResultWriter:
         for center, cnt in zip(self.abs_bin_centers, self.abs_bin_total_cnt[mode]):
             self.abs_displ[mode].write("{} {}\n".format(center, cnt/self.analyzed_total))
 
-    def write_zeroth_moment(self):
-        pass
-
     def write_first_moment(self):
         # compute projectile hit place and shift requirements
         box_len_x = -self.box[0][0] + self.box[0][1]
@@ -477,22 +458,6 @@ class ResultWriter:
         y_shift = box_half_len_y - y_hit_position
 
         # Kr implanted (x) // x1-x0 self.projectile_implanted
-        # ZEROTH MOMENT :::
-        if self.projectile_implanted is None:
-            self.mz_krimplanted = np.append(self.mz_krimplanted, 0)
-        else:
-            self.mz_krimplanted = np.append(self.mz_krimplanted, 1)
-        # kr sputt
-        if self.sputt_list[1] is None:
-            self.mz_krsputt = np.append(self.mz_krsputt, 0)
-        else:
-            self.mz_krsputt = np.append(self.mz_krsputt,- self.sputt_list[1].shape[0])
-
-        if self.sputt_list[1] is None:
-            self.mz_sisputt = np.append(self.mz_sisputt, 0)
-        else:
-            self.mz_sisputt = np.append(self.mz_sisputt, -self.sputt_list[0].shape[0])
-
 
         # !!!!
         if self.projectile_implanted is None:
@@ -502,11 +467,6 @@ class ResultWriter:
             self.mf_krimplanted = np.append(self.mf_krimplanted, implanted_distance)
             proj_indexes = np.digitize(self.projectile_implanted[2] - self.ave_surf, self.bin_edges)
             self.mf_hist_krimplantation[proj_indexes] += implanted_distance
-            # add implanted
-
-            proj_indexes = np.digitize(np.array([implanted_distance]),self.xhist_bin_edges)
-            for indexes in proj_indexes:
-                self.xhist_kr_implanted[indexes] += 1
 
         # 0 - Si  1 - Kr
         # Kr sputtered (x) // x0-x1
@@ -540,8 +500,16 @@ class ResultWriter:
             self.mf_sisput = np.append(self.mf_sisput, 0.0)
         else:
             si_sputtered_total = 0.0
-            for x_start_pos in self.sputt_list[0][:,0]:
-                si_sputtered_total -= (((x_start_pos- self.box[0][0]) % box_len_x) + x_shift ) % box_len_x - backward_x
+            #GLOBAL_WRITE.write("{}\n{}\n".format(len(self.sputt_list[0]), "name"))
+            for atomi in range(len(self.sputt_list[0])):
+                x_sputtered_pos = (((self.sputt_list[0][atomi][0] - self.box[0][0]) % box_len_x) + x_shift ) % box_len_x - backward_x
+
+                y_sputtered_pos = (((self.sputt_list[0][atomi][1] - self.box[1][0]) % box_len_y) + y_shift ) % box_len_y - box_half_len_y
+
+                z_sputtered_pos = self.sputt_list[0][atomi][2] - self.ave_surf
+
+                GLOBAL_WRITE.write("Si {} {} {}\n".format(x_sputtered_pos, y_sputtered_pos, z_sputtered_pos))
+                si_sputtered_total -= x_sputtered_pos
 
             self.mf_sisput = np.append(self.mf_sisput, si_sputtered_total)
 
@@ -599,15 +567,6 @@ class ResultWriter:
 
         self.m_first.write(w_stirng)
 
-        # zeroth write
-
-        krimpl_mz = np.average(self.mz_krimplanted[rs:re])
-        krsput_mz = np.average(self.mz_krsputt[rs:re])
-        sisput_mz = np.average(self.mz_sisputt[rs:re])
-
-        w_stirng_mz = "{}  {} {} {}\n".format(self.traj_num, krimpl_mz, krsput_mz, sisput_mz)
-        self.m_zeroth.write(w_stirng_mz)
-
         # /////
         if self.traj_num%self.analyze_interval == 0:
             if not os.path.exists(self.first_moment_histogram_dir):
@@ -645,26 +604,12 @@ class ResultWriter:
             local_xhist_file.write("x2-x1  n_kr  n_si\n")
 
 
-
             for i in range(len(self.xhist_bin_centers)):
                 outstr = "{} {} {}\n".format(self.xhist_bin_centers[i], self.xhist_kr[i]/div, self.xhist_si[i]/div)
                 local_xhist_file.write(outstr)
 
-
             self.xhist_si.fill(0.0)
             self.xhist_kr.fill(0.0)
-
-            if not os.path.exists(self.xhist_implanted_dir):
-                os.makedirs(self.xhist_implanted_dir)
-
-            local_xhist_implanted_file = open("{}/{}".format(self.xhist_implanted_dir, local_hist_name),'w')
-            local_xhist_implanted_file.write("x2-x1  n_kr_impl\n")
-
-            for i in range(len(self.xhist_bin_centers)):
-                outstr = "{} {}\n".format(self.xhist_bin_centers[i], self.xhist_kr_implanted[i]/div)
-                local_xhist_implanted_file.write(outstr)
-
-            self.xhist_kr_implanted.fill(0.0)
 
 
     def write_depth_profile(self):
@@ -861,10 +806,11 @@ class ResultWriter:
         self.write_displ(1)
         '''
 
-reswrite = ResultWriter("/home/dawid/dumps/hobler_redist/diff_deg/dumpse_60",
-                        "/home/dawid/dumps/hobler_redist/tmp",
-                        60)
+reswrite = ResultWriter("/home/dawid/dumps/hobler_redist/diff_deg/dumpse_40",
+                        "/tmp/test",
+                        40)
 #reswrite.run([899, 1201])
-reswrite.run()
+reswrite.run([650, 1000])
+print "test"
 #reswrite.run([1501, 5000])
 

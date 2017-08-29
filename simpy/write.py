@@ -23,7 +23,6 @@ class xyz:
         # single frame mode
         if isinstance(frames, tools.Frame):
             self.write_frame(frames, extra)
-            pass
 
         # list of frames mode
         elif type(frames) == list:
@@ -78,6 +77,49 @@ class xyz:
         except IOError:
             log.error("Problems encountered when closing file: %s" %
                       self.filename)
+
+class lammpstrj:
+    def __init__(self, filename, fields=None):
+        try:
+            self.filename = filename
+            log.info("Successfully opened file for writing: %s" % filename)
+            self.outfile = open(filename, 'w')
+        except IOError:
+            log.error("Could not open file for writing: %s" % filename)
+
+        self.fields = fields
+
+    def write(self, frames):
+        # single frame mode
+        if isinstance(frames, tools.Frame):
+            self.write_frame(frames)
+
+        # list of frames mode
+        elif type(frames) == list:
+            frame_number = len(frames)
+
+            for i in range(frame_number):
+                log.info("Writing frame %i/%i" % (i, frame_number))
+                self.write_frame(frames[i])
+        else:
+            log.error("Passed object is not Frame or list of Frames")
+
+    def write_frame(self, frame):
+        header = "ITEM: TIMESTEP\n0.0\n"
+        header += "ITEM: NUMBER OF ATOMS\n{}\n".format(len(frame["coord"]))
+        header += "ITEM: BOX BOUNDS pp pp pp\n-100 100\n-100 100\n-100 100\n"
+        header += "ITEM: ATOMS element x y z q"
+
+        self.outfile.write(header)
+
+        for i in xrange(len(frame["coord"])):
+            self.outfile.write("\n{} {} {} {} {}".format(
+                frame["element"][i], frame["coord"][i][0], frame["coord"][i][1], frame["coord"][i][2],
+                frame["q"][i]
+            ))
+
+            #frame["vx"][i], frame["vy"][i], frame["vz"][i]
+
 
 
 class lmpdat:
