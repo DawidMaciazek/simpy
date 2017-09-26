@@ -217,3 +217,11 @@ class Frame:
         except:
             pass
         return oFrame
+
+    def copy(self):
+        cframe = Frame()
+        for key in self.record:
+            try:
+                cframe.add(key, self.record[key].copy())
+            except AttributeError:
+                cframe.add(key, self.record[key])
