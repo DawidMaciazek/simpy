@@ -225,3 +225,5 @@ class Frame:
                 cframe.add(key, self.record[key].copy())
             except AttributeError:
                 cframe.add(key, self.record[key])
+
+        return cframe
