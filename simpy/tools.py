@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import copy
 log = logging.getLogger(__name__)
 
 class BinAtom:
@@ -222,7 +223,10 @@ class Frame:
         cframe = Frame()
         for key in self.record:
             try:
-                cframe.add(key, self.record[key].copy())
+                if isinstance(self.record[key], list):
+                    cframe.add(key, copy.deepcopy(self.record[key]))
+                else:
+                    cframe.add(key, self.record[key].copy())
             except AttributeError:
                 cframe.add(key, self.record[key])
 

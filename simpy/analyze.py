@@ -728,7 +728,7 @@ class RMS:
         else:
             return math.sqrt(r2-dxy2)+z
 
-    def calc_sampling_array(self, jump=0.5):
+    def calc_sampling_array(self, jump=1.0):
         """
         Generate and set evenly spaced sampling array in xy plane
 
@@ -749,8 +749,8 @@ class RMS:
         self.sampling_array_y = len(y)
         self.sampling_array_dim_flag = True
 
-        X, Y = numpy.meshgrid(x, y)
-        self.sampling_array = numpy.array([Y.flatten(), X.flatten()]).T
+        self.sampling_array = numpy.array(numpy.meshgrid(x, y)).T.reshape(-1,2)
+        #self.sampling_array = numpy.array([Y.flatten(), X.flatten()]).T
         self.sampling_array_flag = True
 
     def set_sampling_array(self, array):
